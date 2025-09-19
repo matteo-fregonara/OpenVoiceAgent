@@ -31,7 +31,14 @@
 
 6. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
 
-7. Run the application
+7. Change the TTS model path
+
+In tts_config.json
+```
+"local_models_path": "YOUR_PATH_HERE/jip-klm-OpenAgent/models",
+```
+
+8. Run the application
 
 ```
 > python main.py
