@@ -43,3 +43,28 @@ In tts_config.json
 ```
 > python main.py
 ```
+
+### Troubleshooting
+
+If you encounter errors related to NVIDIA libraries, follow these steps to resolve them.
+
+---
+
+#### `RealTimeSTT: root - ERROR - Library cublas64_12.dll is not found or cannot be loaded`
+
+This error means a required NVIDIA library is missing. To fix this, you need to download and install the cuDNN library.
+
+1.  Go to the official **NVIDIA cuDNN downloads** page: [https://developer.nvidia.com/cudnn-downloads](https://developer.nvidia.com/cudnn-downloads)
+2.  Download the appropriate version.
+3.  Once downloaded, copy the files from the `bin` folder of your cuDNN installation (e.g., `C:\Program Files\NVIDIA\CUDNN\v9.13\bin\12.9`) and paste them into your Conda environment's library bin folder.
+
+    **Example Path:**
+    `C:\Users\<your_username>\miniconda3\envs\<your_env_name>\Library\bin`
+
+---
+
+#### `RealTimeSTT: root - ERROR - cuDNN failed with status CUDNN_STATUS_EXECUTION_FAILED`
+
+This error often indicates a **GPU memory issue**. The GPU may not have enough free memory to run the process.
+
+**Solution:** Check your GPU's memory usage and close any other applications that might be using it. You can use a tool like **NVIDIA-SMI** to monitor GPU memory.
