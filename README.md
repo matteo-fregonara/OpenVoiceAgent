@@ -68,3 +68,8 @@ This error means a required NVIDIA library is missing. To fix this, you need to 
 This error often indicates a **GPU memory issue**. The GPU may not have enough free memory to run the process.
 
 **Solution:** Check your GPU's memory usage and close any other applications that might be using it. You can use a tool like **NVIDIA-SMI** to monitor GPU memory.
+
+If your GPU memory is truly empty, you may need to install the CPU version of PyTorch as a fallback. Run the following command:
+
+```bash
+pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url [https://download.pytorch.org/whl/cpu](https://download.pytorch.org/whl/cpu)
