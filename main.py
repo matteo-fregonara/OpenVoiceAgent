@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from tts_handler import TTSHandler
 from RealtimeSTT import AudioToTextRecorder
 import logging
+import argparse
 
 @dataclass
 class Config:
@@ -31,8 +32,9 @@ class Config:
     stt_model: str = "tiny.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.15
-    chat_params_file: str = "chat_params.json"    
+    prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
     tts_config_file: str = "tts_config.json"
+    output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
 
 
 def color_text(text, color_code):
@@ -45,7 +47,7 @@ class Main:
         self.valid_emotions = self.get_valid_emotions()
 
         # Load chat parameters
-        with open(config.chat_params_file, 'r') as f:
+        with open(config.prompt_file, 'r') as f:
             self.chat_params = json.load(f)
 
         print("Loading STT")
@@ -231,7 +233,7 @@ class Main:
 
         if self.tts_handler:
             self.tts_handler.sentence_queue.finish_current_sentence()
-        self.llm_handler.write_payload()
+        self.llm_handler.write_payload(file_path=config.output_file)
 
         self.wait_for_tts_completion()
 
@@ -269,6 +271,14 @@ class Main:
             logging.debug("TTS shutdown complete.")
 
 if __name__ == '__main__':
-    config = Config()
+    parser = argparse.ArgumentParser(description="Voice chat runner")
+    parser.add_argument("-p", "--prompt-file", dest="prompt_file", default=None, help="Path to file to use for prompt parameters")
+    parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
+    args = parser.parse_args()
+
+    prompt_file_path = args.prompt_file or Config.prompt_file
+    output_file_path = args.output_file or Config.output_file
+
+    config = Config(prompt_file=prompt_file_path, output_file=output_file_path)
     main = Main(config)
     main.run()
