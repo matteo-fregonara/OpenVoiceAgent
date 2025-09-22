@@ -73,3 +73,12 @@ If your GPU memory is truly empty, you may need to install the CPU version of Py
 
 ```bash
 pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url [https://download.pytorch.org/whl/cpu](https://download.pytorch.org/whl/cpu)
+```
+
+---
+
+#### `HTTPConnectionPool(host='localhost', port=1234): Max retries exceeded`
+
+This error indicates that the application is trying to connect to a server that is not running.
+
+**Solution:** If you are using **LM Studio**, make sure you have loaded a model and started the local inference server. You can find the button to start the server in the **Local Server** tab of the LM Studio application.
