@@ -18,6 +18,15 @@ from dataclasses import dataclass
 from tts_handler import TTSHandler
 from RealtimeSTT import AudioToTextRecorder
 import logging
+from llm_lmstudio.llm_handler import LLMHandler
+
+# Interruptions
+# ===== NEW: imports for barge-in controller/workers =====
+import threading
+import queue
+import pyaudio
+import struct
+# ========================================================
 
 @dataclass
 class Config:
@@ -38,6 +47,156 @@ class Config:
 def color_text(text, color_code):
     return f"\033[{color_code}m{text}\033[0m"
 
+# ===== NEW: Barge-in controller with queues + events =====
+class BargeInController:
+    """
+    Central place for cooperative cancellation and barge-in signaling.
+    - barge_event: set as soon as mic detects user voice activity
+    - cancel_event: set when we must abort current AI generation + TTS
+    - input_queue: finalized user utterances (strings)
+    """
+    def __init__(self):
+        self.barge_event = threading.Event()
+        self.cancel_event = threading.Event()
+        self.input_queue = queue.Queue(maxsize=16)
+        self.ai_speaking = threading.Event()  # set while AI is speaking/playing
+
+    def request_cancel(self):
+        self.cancel_event.set()
+        self.barge_event.set()  # treat as barge source too
+
+    def reset_for_next_turn(self):
+        self.cancel_event.clear()
+        self.barge_event.clear()
+# ========================================================
+
+# ===== NEW: Background STT worker (uses your recorder) =====
+class STTWorker(threading.Thread):
+    """
+    Continuously pulls finalized utterances from RealtimeSTT and enqueues them.
+    This keeps main loop non-blocking and ready to cancel AI at any time.
+    """
+    def __init__(self, recorder: AudioToTextRecorder, ctrl: BargeInController, logger=None):
+        super().__init__(daemon=True)
+        self.recorder = recorder
+        self.ctrl = ctrl
+        self._stop = threading.Event()
+        self.log = logger or logging.getLogger(__name__)
+
+    def run(self):
+        while not self._stop.is_set():
+            try:
+                text = self.recorder.text()  # blocks until user finishes
+                if text and text.strip():
+                    self.ctrl.input_queue.put(text.strip())
+            except Exception as e:
+                self.log.exception(f"STTWorker error: {e}")
+                time.sleep(0.05)
+
+    def stop(self):
+        self._stop.set()
+# ==========================================================
+
+# ===== NEW: Tiny mic-energy watcher for early barge-in =====
+class MicEnergyWatcher(threading.Thread):
+    """
+    Simple RMS-based VAD using pyaudio (no external deps).
+    Sets ctrl.barge_event as soon as sustained voice energy is detected.
+    This lets us interrupt TTS/LLM before the utterance is finalized.
+    To avoid the mic being triggered by your own TTS output,
+    we use a **higher threshold while AI is speaking**. If you’re on open
+    speakers and it still self-triggers, set mode="disabled" (see below).
+    """
+    def __init__(self, ctrl: BargeInController, rate=16000, chunk=2048,
+                 base_thresh=6000, sustain_ms=450, device_index=None, 
+                 mode="high_thresh_while_tts", logger=None):
+        
+        """
+        base_thresh: noise threshold
+        sustain_ms: how long sustained speech has to be there to be considered an event
+        mode:
+          - "high_thresh_while_tts" (default): x4 threshold when AI speaking
+          - "always": same threshold always (most sensitive, may self-trigger)
+          - "disabled": don’t watch mic at all (no instant barge-in; rely on STT)
+        """
+        super().__init__(daemon=True)
+        self.ctrl = ctrl
+        self.rate = rate
+        self.chunk = chunk
+        self.base_thresh = base_thresh
+        self.sustain_ms = sustain_ms
+        self.device_index = device_index
+        self.mode = mode
+        self._stop = threading.Event()
+        self.pa = None
+        self.stream = None
+        self.log = logger or logging.getLogger(__name__)
+
+    def open(self):
+        self.pa = pyaudio.PyAudio()
+        self.stream = self.pa.open(format=pyaudio.paInt16, channels=1, rate=self.rate,
+                                   input=True, frames_per_buffer=self.chunk,
+                                   input_device_index=self.device_index)
+
+    def close(self):
+        try:
+            if self.stream:
+                self.stream.stop_stream()
+                self.stream.close()
+        finally:
+            self.stream = None
+        try:
+            if self.pa:
+                self.pa.terminate()
+        finally:
+            self.pa = None
+
+    def _effective_thresh(self):
+        if self.mode == "disabled":
+            return 10**12  # never trigger
+        if self.mode == "high_thresh_while_tts" and self.ctrl.ai_speaking.is_set():
+            return self.base_thresh * 4  # harder to trigger on your own TTS
+        return self.base_thresh
+
+    def run(self):
+        if self.mode == "disabled":
+            return
+        try:
+            self.open()
+        except Exception as e:
+            # If mic can’t open, just disable watcher gracefully.
+            self.log.warning(f"MicEnergyWatcher disabled (mic open failed): {e}")
+            return
+
+        voiced_ms = 0
+        frame_ms = int(1000 * self.chunk / self.rate)
+        while not self._stop.is_set():
+            try:
+                data = self.stream.read(self.chunk, exception_on_overflow=False)
+                # Compute simple RMS
+                n = len(data) // 2
+                if n == 0: 
+                    time.sleep(0.01); 
+                    continue
+                samples = struct.unpack("<" + "h"*n, data)
+                rms = sum(s*s for s in samples) // n
+                thresh = self._effective_thresh()
+                if rms > thresh:
+                    voiced_ms += frame_ms
+                    if voiced_ms >= self.sustain_ms:
+                        # print("Exceeded energy in mic watcher!")
+                        self.ctrl.barge_event.set()
+                        voiced_ms = 0
+                else:
+                    voiced_ms = max(0, voiced_ms - 2*frame_ms)
+            except Exception:
+                time.sleep(0.01)
+        self.close()
+
+    def stop(self):
+        self._stop.set()
+# =================================================================
+
 class Main:
     def __init__(self, config: Config):
         self.config = config
@@ -55,17 +214,6 @@ class Main:
             spinner=False,
             post_speech_silence_duration=config.stt_silence_duration
         )
-        self.llm_handler = None
-        if config.llm_provider == "llamacpp":
-            from llm_llamacpp.llm_handler import LLMHandler
-        elif config.llm_provider == "ollama":
-            from llm_ollama.llm_handler import LLMHandler
-        elif config.llm_provider == "openai":
-            from llm_openai.llm_handler import LLMHandler
-        elif config.llm_provider == "anthropic":
-            from llm_anthropic.llm_handler import LLMHandler
-        elif config.llm_provider == "lmstudio":
-            from llm_lmstudio.llm_handler import LLMHandler
         self.llm_handler = LLMHandler()
 
 
@@ -78,6 +226,13 @@ class Main:
         self.in_emotion = False
         self.last_char = ""
         self.assistant_text = ""  # New variable to store complete assistant response
+
+        # ===== NEW: barge-in controller and workers =====
+        self.ctrl = BargeInController()
+        self.stt_worker = STTWorker(self.recorder, self.ctrl, logger=logging.getLogger("STTWorker"))
+        # Optional mic watcher for early barge-in; safe to disable by commenting if not needed
+        self.mic_watcher = MicEnergyWatcher(self.ctrl, mode="high_thresh_while_tts", logger=logging.getLogger("MicWatcher"))
+        # =================================================
 
     def setup_logging(self):
         level = logging.DEBUG if self.config.dbg_log else self.config.log_level_nondebug
@@ -93,10 +248,6 @@ class Main:
         emotions_str = ', '.join(f'(\033[0;91m{emotion.lower()}\033[0m)' for emotion in self.valid_emotions)
         print(f"Available emotions: {emotions_str}\n")
 
-    # def print_scenario(self):
-    #     blue_scenario = f"\033[94m{self.chat_params['scenario'].format(char=self.chat_params['char'], user=self.chat_params['user'])}\033[0m"
-    #     print(f"Scenario: {blue_scenario}")
-
     def print_character_info(self):
 
         char_name = color_text(self.chat_params['char'], '96')  # Light Cyan
@@ -111,6 +262,14 @@ class Main:
         print(f"Description: {user_desc}")
         print(f"\nScenario: {scenario}")
         print()  # Extra line for spacing
+
+    def _print_listen_prompt(self, first: bool = False):
+        """
+        >>> NEW: Show a visible 'please speak' prompt before we block waiting
+        for the first (and subsequent) user utterance.
+        """
+        user_name = color_text(self.chat_params['user'], '93')
+        print(f"\n>>> {user_name}: ", end="", flush=True)
 
     def get_system_prompt(self) -> str:
         valid_emotions_str = ', '.join(f'[{emotion}]' for emotion in self.valid_emotions)
@@ -128,6 +287,11 @@ class Main:
         return system_prompt
 
     def process_llm_token(self, token: str):
+        # ===== CHANGED: cooperative cancel check on each token =====
+        if self.ctrl.cancel_event.is_set() or self.ctrl.barge_event.is_set():
+            # Raise to abort streaming immediately (caught by caller)
+            raise RuntimeError("CancelledByBargeIn")
+        # ==========================================================
         for char in token:
             self.assistant_text += char  # Add each character to the complete assistant text
             # if char == ' ' and self.last_char == ']':
@@ -173,41 +337,74 @@ class Main:
         if self.tts_handler:
             self.tts_handler.sentence_queue.add_emotion(current_emotion)
 
+    # ===== NEW: announce AI turn label (kept as helper) =====
+    def _announce_ai_turn(self):
+        char_name = color_text(self.chat_params['char'], '96')
+        print(f"<<< {char_name}: ", end="", flush=True)
+    # ========================================================
+
     def run(self):
         self.print_available_emotions()
         self.print_character_info()
-        #self.print_scenario()
         system_prompt = self.get_system_prompt()
 
-        while True:
-            user_text = self.get_user_input()
-            if self.should_exit(user_text):
-                break
+        # Instead of having a while loop that loops between user input and AI input
+        # Need multithreading where there is one thread to process user input and whenever the user is speaking, the AI thread gets interrupted
+        # Meanwhile the AI thread processes any previous user input and responds as normal
+        # Basically it allows the user to interrupt the AI when it is speaking
+        
+        # ===== NEW: start background workers =====
+        self.stt_worker.start()
+        self.mic_watcher.start()
+        # =========================================
 
-            self.process_user_input(user_text, system_prompt)
+        # >>> NEW: ensure clean slate and PROMPT user for the FIRST turn
+        self.ctrl.reset_for_next_turn()            # clear any stale events before first turn
+        self._print_listen_prompt(first=True)      # visible "please speak" prompt
 
-        self.cleanup()
+        # ===== NEW: event-driven loop (no blocking input) =====
+        try:
+            while True:
+                # Wait for next finalized user utterance
+                user_text = self.ctrl.input_queue.get()
+                if self.should_exit(user_text):
+                    break
 
-    def get_user_input(self) -> str:
-        user_name = color_text(self.chat_params['user'], '93')  # Light Green
+                # print user text
+                print(f"{color_text(user_text, '93')}")
 
-        print(f"\n>>> {user_name}: ", end="", flush=True)
+                # If the user started speaking during AI speech, cancel current streams
+                if self.ctrl.barge_event.is_set() and self.ctrl.ai_speaking.is_set():
+                    self._cancel_ai_now()
 
-        user_text = ""
-        while len(user_text.strip()) == 0:
-            user_text = self.recorder.text()
-        colored_user_text = color_text(user_text, '93')
-        print(colored_user_text)
-        return user_text
+                # Run one AI turn cooperatively cancellable
+                self._run_ai_turn(user_text, system_prompt)
 
-    def should_exit(self, user_text: str) -> bool:
-        return len(user_text) <= 7 and "exit" in user_text.lower()
+                # >>> PROMPT the user again for the next turn
+                self._print_listen_prompt()
+        finally:
+            # graceful shutdown
+            self.mic_watcher.stop()
+            self.stt_worker.stop()
+            self.cleanup()
+        # ======================================================
 
-    def process_user_input(self, user_text: str, system_prompt: str):
-        char_name = color_text(self.chat_params['char'], '96')  # Light Magenta
-        print(f"<<< {char_name}: ", end="", flush=True)
-        self.llm_handler.add_user_text(user_text)
+    def _cancel_ai_now(self):
+        """
+        Hard stop TTS and ask LLM to abort. Clears events after.
+        """
+        self.ctrl.request_cancel()
+        if self.tts_handler:
+            self.tts_handler.stop_now()  # NEW: immediate audio stop + clear queues
+        # If your LLM handler supports aborting network stream, call it:
+        try:
+            if hasattr(self.llm_handler, "abort"):
+                self.llm_handler.abort()
+        except Exception:
+            pass
+        # Do not reset events here; next turn will do it.
 
+    def _reset_token_state(self):
         # Reset token processing state
         self.plain_text = ""
         self.last_plain_text = ""
@@ -215,33 +412,78 @@ class Main:
         self.in_emotion = False
         self.last_char = ""
         self.assistant_text = ""
+    
+    def _run_ai_turn(self, user_text: str, system_prompt: str):
+        self._announce_ai_turn()
+        self.llm_handler.add_user_text(user_text)
+        self._reset_token_state()
+
+        # Let controller know AI is "speaking" (streaming tokens/tts)
+        self.ctrl.reset_for_next_turn()  # clear barge/cancel for this turn
+        self.ctrl.ai_speaking.set()
 
         if self.tts_handler:
             self.tts_handler.initialize_pyaudio()
             self.tts_handler.start_threads()
-
-        self.llm_handler.generate_response(system_prompt, on_token=self.process_llm_token)
+            # >>> NEW: give TTS direct access to barge_event so it can self-stop
+            self.tts_handler.set_interrupt_event(self.ctrl.barge_event)
         
-        # Process any remaining buffer content
-        if self.buffer:
-            self.process_buffer()
+        try:
+            # Wrap token callback to inject cancellation
+            def _on_tok(tok):
+                # early barge-in: if user starts talking mid-stream, cancel right away
+                if self.ctrl.barge_event.is_set() or self.ctrl.cancel_event.is_set():
+                    self.ctrl.request_cancel()
+                    raise RuntimeError("CancelledByBargeIn")
+                self.process_llm_token(tok)
 
-        # Add the complete assistant text to the LLM handler's history
-        self.llm_handler.add_assistant_text(self.assistant_text)
+            self.llm_handler.generate_response(system_prompt, on_token=_on_tok)
 
-        if self.tts_handler:
-            self.tts_handler.sentence_queue.finish_current_sentence()
-        self.llm_handler.write_payload()
+            # Process any remaining buffer content
+            if self.buffer:
+                self.process_buffer()
 
-        self.wait_for_tts_completion()
+            # Add the complete assistant text to chat history (unless cancelled)
+            if not self.ctrl.cancel_event.is_set():
+                self.llm_handler.add_assistant_text(self.assistant_text)
 
+        except RuntimeError as e:
+            # Silent/clean abort on our cancellation reason
+            if "CancelledByBargeIn" not in str(e):
+                raise
+            # Optionally log: interrupted assistant turn
+        finally:
+            if self.tts_handler:
+                if not self.ctrl.cancel_event.is_set():
+                    self.tts_handler.sentence_queue.finish_current_sentence()
+                self.llm_handler.write_payload()
+                # If we were cancelled, we already stopped TTS in _cancel_ai_now()
+                if not self.ctrl.cancel_event.is_set():
+                    self.wait_for_tts_completion()
+                # Always stop audio threads cleanly between turns
+                self.tts_handler.stop_event.set()
+                if getattr(self.tts_handler, "tts_sentence_thread", None):
+                    self.tts_handler.tts_sentence_thread.join(timeout=1.0)
+                if getattr(self.tts_handler, "tts_play_thread", None):
+                    self.tts_handler.tts_play_thread.join(timeout=1.0)
+                self.tts_handler.shutdown_pyaudio()
+            self.ctrl.ai_speaking.clear()
+
+    def should_exit(self, user_text: str) -> bool:
+        return len(user_text) <= 7 and "exit" in user_text.lower()
+    
     def wait_for_tts_completion(self):
         if not self.tts_handler:
             return
-
         logging.debug("Waiting for TTS to finish processing...")
         not_playing_start_time = None
         while True:
+            # >>> NEW: detect barge-in during TTS playout
+            if self.ctrl.barge_event.is_set():
+                logging.debug("Barge detected during TTS playout; cancelling now.")
+                self._cancel_ai_now()   # calls tts_handler.stop_now(), clears queues, stops stream
+                break                   # exit the wait immediately
+            
             if self.tts_handler.sentence_queue.is_empty():
                 finished_playout = (
                     not self.tts_handler.stream.is_playing() and
@@ -256,11 +498,7 @@ class Main:
                 else:
                     not_playing_start_time = None
             time.sleep(0.01)
-
         logging.debug("All sentences processed and TTS playback completed.")
-        self.tts_handler.stop_event.set()
-        self.tts_handler.tts_sentence_thread.join()
-        self.tts_handler.shutdown_pyaudio()
 
     def cleanup(self):
         if self.tts_handler:

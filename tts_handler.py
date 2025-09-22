@@ -25,6 +25,15 @@ class TTSHandler:
         self.pySampleRate = 24000
         self.pyOutput_device_index = None
 
+        # ===== NEW: hold handles to threads/streams for quick stop =====
+        self.pyaudio_instance = None
+        self.pystream = None
+        self.tts_sentence_thread = None
+        self.tts_play_thread = None
+        self.external_interrupt_event = None
+        self._stream_needs_reset = False # Set to true when TextToAudioStream needs re-build after barge-in event
+        # ===============================================================
+
         print("Loading TTS")
         if self.config['use_local_model']:
             print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
@@ -48,6 +57,16 @@ class TTSHandler:
         self.sentence_queue = ThreadSafeSentenceQueue()
         self.chunk_queue = queue.Queue()
 
+        # NEW: rebuild the stream after an interrupt (or if it's None)
+        if getattr(self, "_stream_needs_reset", False) or self.stream is None:
+            try:
+                # If the old object had internal threads, just drop it on the floor.
+                # (TextToAudioStream usually doesn't need an explicit close)
+                pass
+            finally:
+                self.stream = TextToAudioStream(self.engine, muted=True)
+                self._stream_needs_reset = False
+
         self.pyaudio_instance = pyaudio.PyAudio()
         self.pystream = self.pyaudio_instance.open(
             format=self.pyFormat,
@@ -57,13 +76,29 @@ class TTSHandler:
             output=True)
         self.pystream.start_stream()
 
+    def set_interrupt_event(self, event):
+        """Provide an external Event (eg, barge event) that should stop TTS immediately."""
+        self.external_interrupt_event = event
+
     def tts_play_worker_thread(self):
         while not self.stop_event.is_set():
+            # >>> NEW: abort if external interrupt is set
+            if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
+                self.stop_now()
+                break
             if self.chunk_queue.empty():
                 time.sleep(0.001)
                 continue
             with self.chunk_lock:
                 chunk = self.chunk_queue.get()
+            # ===== GUARD: if we were stopped after get(), break early =====
+            if self.stop_event.is_set():
+                break
+            # >>> NEW: one more guard just before write
+            if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
+                self.stop_now()
+                break
+            # =============================================================
             self.pystream.write(chunk)
 
     def start_tts(self):
@@ -103,6 +138,11 @@ class TTSHandler:
                 print(f"EMOTION: {sentence.emotion}")
 
             while not sentence.get_finished():
+                # ===== EARLY EXIT if stopped =====
+                if self.stop_event.is_set() or (self.external_interrupt_event is not None and self.external_interrupt_event.is_set()):
+                    self.stop_now()
+                    return
+                # =================================
                 current_text = sentence.get_text()
                 if len(current_text) > len(last_text):
                     new_text = current_text[len(last_text):]
@@ -116,10 +156,19 @@ class TTSHandler:
                 print(" - feed finished")
             buffer.stop()
         while self.stream.is_playing():
+            # ===== EARLY EXIT during tail play if stopped =====
+            if self.stop_event.is_set() or (self.external_interrupt_event is not None and self.external_interrupt_event.is_set()):
+                self.stop_now()
+                break
+            # ==================================================
             time.sleep(0.01)
 
     def tts_sentence_worker_thread(self):
         while not self.stop_event.is_set():
+            # >>> NEW: abort if external interrupt is set
+            if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
+                self.stop_now()
+                break
             sentence = self.sentence_queue.get_sentence()
 
             if sentence:
@@ -180,15 +229,75 @@ class TTSHandler:
     
     def shutdown_pyaudio(self):
         if self.pystream is not None:
-            self.pystream.stop_stream()
-            self.pystream.close()
+            try:
+                self.pystream.stop_stream()
+                self.pystream.close()
+            except Exception:
+                pass
         if self.pyaudio_instance is not None:
-            self.pyaudio_instance.terminate()
+            try:
+                self.pyaudio_instance.terminate()
+            except Exception:
+                pass
+        self.pystream = None
+        self.pyaudio_instance = None
 
     def shutdown(self):
         self.stop_event.set()
         print("Waiting for sentence thread finished")
-        self.tts_sentence_thread.join()
+        if self.tts_sentence_thread is not None:
+            self.tts_sentence_thread.join()
         print("Waiting for play thread finished")
-        self.tts_play_thread.join()
+        if self.tts_play_thread is not None:
+            self.tts_play_thread.join()
         self.engine.shutdown()
+
+    # ===== NEW: immediate stop used for barge-in =====
+    def stop_now(self):
+        """
+        Panic stop:
+        - prevent more writes
+        - stop the pyaudio stream immediately
+        - clear all pending audio/sentences so playback truly halts
+        NOTE: does NOT kill worker threads; they continue for the next turn.
+        """
+        self.stop_event.set()  # tell workers to bail out of loops ASAP
+
+        # Stop the low-level audio stream if playing
+        try:
+            if self.pystream is not None and self.pystream.is_active():
+                self.pystream.stop_stream()
+        except Exception:
+            pass
+
+        # Flush any pending audio data
+        with self.chunk_lock:
+            try:
+                while not self.chunk_queue.empty():
+                    self.chunk_queue.get_nowait()
+            except Exception:
+                pass
+        
+        # Flush any pending sentences (prevents tail playback resuming)
+        try:
+            # ThreadSafeSentenceQueue from your lib likely has an internal Queue;
+            # use its public API to drop current sentence and clear staged text.
+            # Here we do the safest thing: mark the current sentence finished and empty future ones.
+            self.sentence_queue.finish_current_sentence()
+            # If the implementation exposes a .queue, clear it defensively:
+            if hasattr(self.sentence_queue, "queue"):
+                with self.sentence_queue.mutex:
+                    self.sentence_queue.queue.clear()
+        except Exception:
+            pass
+
+        # Also tell engine stream to stop if it has such a method
+        try:
+            if hasattr(self.stream, "stop"):
+                self.stream.stop()
+                self._stream_needs_reset = True # mark for rebuild
+        except Exception:
+            self._stream_needs_reset = True
+
+        # Important: allow subsequent turns
+        # (recreate fresh stop_event when initialize_pyaudio() is called next)

@@ -2,6 +2,7 @@ import json
 import os
 import time
 import requests
+import threading
 from typing import Callable, Dict, Any, List
 from lib.conversation import Conversation
 
@@ -19,6 +20,12 @@ class LLMHandler:
         
         # LMStudio typically runs on localhost:1234
         self.api_url = "http://localhost:1234/v1/chat/completions"
+
+        # ===== NEW: support streaming abort =====
+        self.session = requests.Session()
+        self._active_response = None
+        self._abort = threading.Event()
+        # =======================================
 
     def load_completion_params(self, file_path: str) -> Dict[str, Any]:
         with open(file_path, 'r') as f:
@@ -54,12 +61,19 @@ class LLMHandler:
 
         start_time = time.time()
         collected_messages = []
+        self._abort.clear()
 
         try:
-            response = requests.post(self.api_url, json=payload, stream=True)
+            #### NEW
+            # NOTE: leave read timeout None for long streams. Connect timeout small.
+            response = self.session.post(self.api_url, json=payload, stream=True, timeout=(3.05, None))
+            self._active_response = response
+            # response = requests.post(self.api_url, json=payload, stream=True)
             # response.raise_for_status()
 
             for line in response.iter_lines():
+                if self._abort.is_set():
+                    break
                 if line:
                     line = line.decode('utf-8')
                     if line.startswith("data: "):
@@ -67,13 +81,14 @@ class LLMHandler:
                         if data['choices'][0]['finish_reason'] is not None:
                             break
                         token = data['choices'][0]['delta'].get('content', '')
-                        collected_messages.append(token)
-                        if on_token:
-                            on_token(token)
+                        if token:
+                            collected_messages.append(token)
+                            if on_token:
+                                on_token(token)
                         
-                        if self.log_stats:
-                            chunk_time = time.time() - start_time
-                            print(f"Token received {chunk_time:.2f} seconds after request: {token}")
+                            if self.log_stats:
+                                chunk_time = time.time() - start_time
+                                print(f"Token received {chunk_time:.2f} seconds after request: {token}")
 
             full_response = ''.join(collected_messages)
 
@@ -82,8 +97,30 @@ class LLMHandler:
                 print(f"Full response received {total_time:.2f} seconds after request")
                 print(f"Full response: {full_response}")
 
+        except RuntimeError as e:
+            # ===== NEW: let our barge-in cancellation bubble up =====
+            if "CancelledByBargeIn" in str(e):
+                raise
+            else:
+                print(f"RuntimeError: {e}")
         except Exception as e:
             print(f"An error occurred: {e}")
+        finally:
+            try:
+                if self._active_response is not None:
+                    self._active_response.close()
+            except Exception as e:
+                print(f"A finally error occured: {e}")
+            self._active_response = None
+
+    # ===== NEW: called by Main._cancel_ai_now() =====
+    def abort(self):
+        self._abort.set()
+        try:
+            if self._active_response is not None:
+                self._active_response.close()
+        except Exception:
+            pass
 
     def write_payload(self, file_path: str = 'payload.txt', mode='w'):
         with open(file_path, mode) as f:
