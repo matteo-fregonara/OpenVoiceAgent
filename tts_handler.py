@@ -4,7 +4,9 @@ import queue
 import time
 import os
 import pyaudio
-from RealtimeTTS import TextToAudioStream, CoquiEngine
+# from RealtimeTTS import TextToAudioStream, CoquiEngine
+from realtimetts_clone.text_to_stream import TextToAudioStream
+from realtimetts_clone.engines.coqui_engine import CoquiEngine
 from lib.sentencequeue import ThreadSafeSentenceQueue, Sentence
 from lib.bufferstream import BufferStream
 
