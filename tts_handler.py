@@ -9,7 +9,7 @@ from realtimetts_clone.text_to_stream import TextToAudioStream
 from realtimetts_clone.engines.coqui_engine import CoquiEngine
 from lib.sentencequeue import ThreadSafeSentenceQueue, Sentence
 from lib.bufferstream import BufferStream
-from cosyvoice_engine2 import CosyvoiceEngine
+from realtimetts_clone.engines.cosyvoice_engine2 import CosyvoiceEngine
 
 class TTSHandler:
     def __init__(self, config_file='tts_config.json'):
@@ -39,20 +39,14 @@ class TTSHandler:
         # else:
         #     self.engine = CoquiEngine()
 
-        if self.config['engine'] == 'cosyvoice':
-            self.engine = CosyvoiceEngine(
-                model_path=self.config['cosyvoice_model_path'],
-                prompt_speech=self.config['cosyvoice_prompt_speech'],
-                prompt_text=self.config['cosyvoice_prompt_text']
-            )
-        else:
-            self.engine = CosyvoiceEngine(
-                model_path=self.config['cosyvoice_model_path'],
-                prompt_speech=self.config['cosyvoice_prompt_speech'],
-                prompt_text=self.config['cosyvoice_prompt_text']
-            )
+
+        self.engine = CosyvoiceEngine(
+            model_path=self.config['cosyvoice_model_path'],
+            prompt_speech=self.config['cosyvoice_prompt_speech'],
+            prompt_text=self.config['cosyvoice_prompt_text']
+        )
         
-        # self.stream = TextToAudioStream(self.engine, muted=True)
+        self.stream = TextToAudioStream(self.engine, muted=True)
 
         if self.dbg_log:
             print("Test Play TTS")
@@ -60,7 +54,7 @@ class TTSHandler:
         # self.stream.feed("hi!")  # only small warmup
         # self.stream.play(log_synthesized_text=True, muted=True)
 
-        self.engine.synthesize("Hello world")
+        # self.engine.synthesize("Hello world")
 
     def initialize_pyaudio(self):
         self.stop_event = threading.Event()

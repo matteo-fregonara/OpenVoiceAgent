@@ -32,7 +32,7 @@ class Config:
     stt_language: str = "en"
     stt_silence_duration: float = 0.15
     chat_params_file: str = "chat_params.json"    
-    tts_config_file: str = "tts_config.json"
+    tts_config_file: str = "tts_config_cv.json"
 
 
 def color_text(text, color_code):

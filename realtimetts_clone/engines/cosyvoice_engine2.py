@@ -1,3 +1,12 @@
+import sys
+import os
+sys.path.append('third_party/CosyVoice')
+
+matcha_path = os.path.join(os.path.dirname(__file__), '..', '..', 'third_party', 'CosyVoice', 'third_party', 'Matcha-TTS')
+sys.path.append(matcha_path)
+
+print('\n'.join(sys.path))
+
 from .base_engine import BaseEngine
 import torch.multiprocessing as mp
 from threading import Lock
@@ -5,6 +14,7 @@ from .safepipe import SafePipe
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 import numpy as np
+import pyaudio
 
 class CosyvoiceEngine(BaseEngine):
     def __init__(self, model_path, prompt_speech, prompt_text, device='cpu'):
@@ -17,9 +27,25 @@ class CosyvoiceEngine(BaseEngine):
         self._synthesize_lock = Lock()
         self.post_init()
 
+    def set_cloning_reference(self, path, prompt_text=None):
+        """Mimic old engine API."""
+        self.prompt_speech = load_wav(path, 16000)
+        if prompt_text:
+            self.prompt_text = prompt_text
+        else:
+            self.prompt_text = ""  # fallback
+
     def post_init(self):
         self.engine_name = "cosyvoice"
         self.create_worker_process()
+
+    def get_stream_info(self):
+        # fallback if cosvoice not initialised
+        sr = 16000
+        if hasattr(self, "cosyvoice") and hasattr(self.cosyvoice, "sample_rate"):
+            sr = self.cosyvoice.sample_rate
+        return pyaudio.paFloat32, 1, sr
+
 
     def create_worker_process(self):
         self.parent_synthesize_pipe, child_pipe = SafePipe()
