@@ -22,9 +22,9 @@
 
 4. Install the required dependencies (assuming gpu)
 ```
-> pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
-> pip install -r requirements.txt 
-> conda install -c conda-forge ffmpeg=4.3.1 
+pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt 
+conda install -c conda-forge ffmpeg=4.3.1 
 ```
 
 5. Download the [TTS model](https://drive.google.com/file/d/16WU3U3RIUbLzrUZo9E5hNifvvK-k67WT/view?usp=sharing) and unzip in `models/` directory
@@ -41,7 +41,7 @@ In tts_config.json
 8. Run the application
 
 ```
-> python main.py --prompt-file prompts/default.json --output-file outputs/example.txt
+python main.py --prompt-file prompts/default.json --output-file outputs/example.txt
 ```
 
 - `prompt-file`: points to the JSON file containing the system prompt to the LLM

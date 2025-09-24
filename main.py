@@ -90,12 +90,7 @@ class STTWorker(threading.Thread):
             try:
                 text = self.recorder.text()  # blocks until user finishes
                 if text and text.strip():
-                    # Remove emotion tags at end of sentence
-                    t = text.strip()
-                    if t.endswith("]"):
-                        print(f"Removing ending tag {t[t.rfind('['):]} from {t}")
-                        t = t[:t.rfind('[')]
-                    self.ctrl.input_queue.put(t)
+                    self.ctrl.input_queue.put(text.strip())
             except Exception as e:
                 self.log.exception(f"STTWorker error: {e}")
                 time.sleep(0.05)

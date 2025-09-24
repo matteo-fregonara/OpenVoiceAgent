@@ -121,6 +121,8 @@ class TTSHandler:
     def tts_play_sentence(self, sentence: Sentence):
         if sentence.get_finished():
             sentence_text = sentence.get_text()
+            if not sentence_text or not sentence_text.strip(): # don't play an empty sentence
+                return
             if self.dbg_log:
                 print(f"tts_play_sentence complete sentence found, playing {sentence_text}")
             self.stream.feed(sentence_text)
