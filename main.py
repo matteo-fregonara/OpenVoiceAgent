@@ -40,7 +40,7 @@ class Config:
     references_folder: str = "reference_wavs"
     stt_model: str = "tiny.en"
     stt_language: str = "en"
-    stt_silence_duration: float = 0.15
+    stt_silence_duration: float = 0.2
     prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
     tts_config_file: str = "tts_config.json"
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
@@ -90,7 +90,12 @@ class STTWorker(threading.Thread):
             try:
                 text = self.recorder.text()  # blocks until user finishes
                 if text and text.strip():
-                    self.ctrl.input_queue.put(text.strip())
+                    # Remove emotion tags at end of sentence
+                    t = text.strip()
+                    if t.endswith("]"):
+                        print(f"Removing ending tag {t[t.rfind('['):]} from {t}")
+                        t = t[:t.rfind('[')]
+                    self.ctrl.input_queue.put(t)
             except Exception as e:
                 self.log.exception(f"STTWorker error: {e}")
                 time.sleep(0.05)
@@ -214,7 +219,7 @@ class Main:
             model=config.stt_model,
             language=config.stt_language,
             spinner=False,
-            post_speech_silence_duration=config.stt_silence_duration
+            post_speech_silence_duration=config.stt_silence_duration,
         )
         self.llm_handler = LLMHandler()
 

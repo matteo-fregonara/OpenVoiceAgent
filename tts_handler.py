@@ -152,6 +152,18 @@ class TTSHandler:
                         self.start_tts()
                 last_text = current_text
                 time.sleep(0.01)
+            
+            # >>>>> NEW: flush any remaining tail that arrived right as the sentence finished
+            final_text = sentence.get_text()
+            if len(final_text) > len(last_text):
+                tail = final_text[len(last_text):]
+                buffer.add(tail)
+                # If we never started playback (short sentence, etc.), start now
+                if not self.stream.is_playing():
+                    self.stream.feed(buffer.gen())
+                    self.start_tts()
+            # <<<<< END NEW
+            
             if self.dbg_log:
                 print(" - feed finished")
             buffer.stop()
