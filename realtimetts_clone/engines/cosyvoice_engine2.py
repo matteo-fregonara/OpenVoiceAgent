@@ -71,29 +71,53 @@ class CosyvoiceEngine(BaseEngine):
             elif msg["command"] == "synthesize":
                 text = msg["data"]["text"]
 
-                # non-streaming inference
-                # This yields one dict per text chunk
-                all_audio_bytes = b''
+                # # non-streaming inference
+                # # This yields one dict per text chunk
+                # all_audio_bytes = b''
+                # for output in model.inference_zero_shot(
+                #     tts_text=text,
+                #     prompt_text=prompt_text,
+                #     prompt_speech_16k=prompt_speech_16k,
+                #     stream=False
+                # ):
+                #     audio_tensor = output['tts_speech']  # shape (1, n_samples)
+                #     audio = audio_tensor.numpy().astype(np.float32)
+                #     all_audio_bytes += audio.tobytes()
+
+                # # send once at end
+                # conn.send(("success", all_audio_bytes))
+                # conn.send(("finished", ""))
+
                 for output in model.inference_zero_shot(
                     tts_text=text,
                     prompt_text=prompt_text,
                     prompt_speech_16k=prompt_speech_16k,
-                    stream=False
+                    stream=True
                 ):
-                    audio_tensor = output['tts_speech']  # shape (1, n_samples)
-                    audio = audio_tensor.numpy().astype(np.float32)
-                    all_audio_bytes += audio.tobytes()
+                    audio_tensor = output['tts_speech']
+                    audio = audio_tensor.numpy().astype(np.float32)  # (1, n_samples)
+                    audio_bytes = audio.tobytes()
+                    conn.send(("chunk", audio_bytes))  # send each chunk immediately
 
-                # send once at end
-                conn.send(("success", all_audio_bytes))
+                # after loop ends
                 conn.send(("finished", ""))
+    
 
     def synthesize(self, text: str):
+        # with self._synthesize_lock:
+        #     self.parent_synthesize_pipe.send({"command": "synthesize", "data": {"text": text}})
+        #     status, result = self.parent_synthesize_pipe.recv()
+        #     # You’ll get a single big audio bytes block
+        #     while "finished" not in status:
+        #         if isinstance(result, bytes):
+        #             self.queue.put(result)  # put the whole audio in the queue
+        #         status, result = self.parent_synthesize_pipe.recv()
+
         with self._synthesize_lock:
             self.parent_synthesize_pipe.send({"command": "synthesize", "data": {"text": text}})
-            status, result = self.parent_synthesize_pipe.recv()
-            # You’ll get a single big audio bytes block
-            while "finished" not in status:
-                if isinstance(result, bytes):
-                    self.queue.put(result)  # put the whole audio in the queue
+            while True:
                 status, result = self.parent_synthesize_pipe.recv()
+                if status == "chunk":
+                    self.queue.put(result)  # streaming audio chunk
+                elif status == "finished":
+                    break
