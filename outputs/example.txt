@@ -7,7 +7,23 @@
         },
         {
             "role": "user",
-            "content": "Hello?"
+            "content": "Hello, Mrs. Johnson."
+        },
+        {
+            "role": "assistant",
+            "content": " [angry] I just found out that my brother has been missing for three days now and I am completely frantic with worry!"
+        },
+        {
+            "role": "user",
+            "content": "That's really terrible, Mrs. Johnson, I'm sorry to hear that."
+        },
+        {
+            "role": "assistant",
+            "content": " [sad] It's not just the missing part, it's the fact that he was supposed to be home by yesterday night... I've been calling his family and they're all saying the same thing - he never showed up on time. It's like something terrible happened. [shouting] When can we expect him back?!"
+        },
+        {
+            "role": "user",
+            "content": "Quick."
         }
     ],
     "stream": true,

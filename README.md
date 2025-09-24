@@ -41,8 +41,11 @@ In tts_config.json
 8. Run the application
 
 ```
-> python main.py
+> python main.py --prompt-file prompts/default.json --output-file outputs/example.txt
 ```
+
+- `prompt-file`: points to the JSON file containing the system prompt to the LLM
+- `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
 
 ### Troubleshooting
 
