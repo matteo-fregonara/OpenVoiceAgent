@@ -9,6 +9,7 @@ from realtimetts_clone.text_to_stream import TextToAudioStream
 from realtimetts_clone.engines.coqui_engine import CoquiEngine
 from lib.sentencequeue import ThreadSafeSentenceQueue, Sentence
 from lib.bufferstream import BufferStream
+from cosyvoice_engine2 import CosyvoiceEngine
 
 class TTSHandler:
     def __init__(self, config_file='tts_config.json'):
@@ -28,22 +29,38 @@ class TTSHandler:
         self.pyOutput_device_index = None
 
         print("Loading TTS")
-        if self.config['use_local_model']:
-            print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
-            self.engine = CoquiEngine(
-                specific_model=self.config['specific_model'],
-                local_models_path=self.config['local_models_path']
+        # fix this later
+        # if self.config['use_local_model']:
+        #     print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
+        #     self.engine = CoquiEngine(
+        #         specific_model=self.config['specific_model'],
+        #         local_models_path=self.config['local_models_path']
+        #     )
+        # else:
+        #     self.engine = CoquiEngine()
+
+        if self.config['engine'] == 'cosyvoice':
+            self.engine = CosyvoiceEngine(
+                model_path=self.config['cosyvoice_model_path'],
+                prompt_speech=self.config['cosyvoice_prompt_speech'],
+                prompt_text=self.config['cosyvoice_prompt_text']
             )
         else:
-            self.engine = CoquiEngine()
+            self.engine = CosyvoiceEngine(
+                model_path=self.config['cosyvoice_model_path'],
+                prompt_speech=self.config['cosyvoice_prompt_speech'],
+                prompt_text=self.config['cosyvoice_prompt_text']
+            )
         
-        self.stream = TextToAudioStream(self.engine, muted=True)
+        # self.stream = TextToAudioStream(self.engine, muted=True)
 
         if self.dbg_log:
             print("Test Play TTS")
 
-        self.stream.feed("hi!")  # only small warmup
-        self.stream.play(log_synthesized_text=True, muted=True)
+        # self.stream.feed("hi!")  # only small warmup
+        # self.stream.play(log_synthesized_text=True, muted=True)
+
+        self.engine.synthesize("Hello world")
 
     def initialize_pyaudio(self):
         self.stop_event = threading.Event()
