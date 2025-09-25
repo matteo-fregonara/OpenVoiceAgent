@@ -61,7 +61,7 @@ class CosyvoiceEngine(BaseEngine):
     @staticmethod
     def _synthesize_worker(conn, ready_event, model_path, prompt_speech_16k, prompt_text):
         # instantiate CosyVoice2 once in worker
-        model = CosyVoice2(model_path, load_jit=False, load_trt=False, load_vllm=False, fp16=False)
+        model = CosyVoice2(model_path, load_jit=False, load_trt=False, load_vllm=False, fp16=True)
         ready_event.set()
 
         while True:
