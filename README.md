@@ -93,5 +93,5 @@ This error indicates that the application is trying to connect to a server that 
 **Solution:** Run command.
 
 ```
-python main.py --prompt-file prompts/default.json --output-file outputs/example.txt
+pip install "nvidia-cuda-runtime-cu12" "nvidia-cublas-cu12" "nvidia-cudnn-cu12==9.*" "nvidia-cuda-nvrtc-cu12"
 ```
