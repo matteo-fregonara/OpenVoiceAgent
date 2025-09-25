@@ -43,3 +43,19 @@ In tts_config.json
 ```
 > python main.py
 ```
+
+
+______
+NATANAEL (me) DO LATER
+
+git submodule update --init --recursive
+
+testing: put whytorturingme in assetes
+
+Run pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com in cosyvoice 
+
+git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B [supah slow]
+
+update config file
+
+pip install resampy
