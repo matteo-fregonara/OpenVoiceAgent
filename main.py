@@ -27,6 +27,7 @@ import threading
 import queue
 import pyaudio
 import struct
+import signal # for forced ctrl c shutdown
 # ========================================================
 
 @dataclass
@@ -236,6 +237,12 @@ class Main:
         self.mic_watcher = MicEnergyWatcher(self.ctrl, mode="high_thresh_while_tts", logger=logging.getLogger("MicWatcher"))
         # =================================================
 
+        # Global shutdown variables
+        self.shutdown_event = threading.Event() # global exit application flag
+        self._sigint_count = 0
+
+        self._install_signal_handlers()
+    
     def setup_logging(self):
         level = logging.DEBUG if self.config.dbg_log else self.config.log_level_nondebug
         logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -366,7 +373,7 @@ class Main:
 
         # ===== NEW: event-driven loop (no blocking input) =====
         try:
-            while True:
+            while not self.shutdown_event.is_set():
                 # Wait for next finalized user utterance
                 user_text = self.ctrl.input_queue.get()
                 if self.should_exit(user_text):
@@ -384,11 +391,19 @@ class Main:
 
                 # >>> PROMPT the user again for the next turn
                 self._print_listen_prompt()
+        except KeyboardInterrupt:
+            self._begin_shutdown()
         finally:
             # graceful shutdown
-            self.mic_watcher.stop()
-            self.stt_worker.stop()
-            self.cleanup()
+            try:
+                self.mic_watcher.stop()
+            except: pass
+            try:
+                self.stt_worker.stop()
+            except: pass
+            try:
+                self.cleanup()
+            except: pass
         # ======================================================
 
     def _cancel_ai_now(self):
@@ -456,11 +471,11 @@ class Main:
             # Optionally log: interrupted assistant turn
         finally:
             if self.tts_handler:
-                if not self.ctrl.cancel_event.is_set():
+                if not (self.ctrl.cancel_event.is_set() or self.shutdown_event.is_set()):
                     self.tts_handler.sentence_queue.finish_current_sentence()
                 self.llm_handler.write_payload(file_path=config.output_file)
                 # If we were cancelled, we already stopped TTS in _cancel_ai_now()
-                if not self.ctrl.cancel_event.is_set():
+                if not (self.ctrl.cancel_event.is_set() or self.shutdown_event.is_set()):
                     self.wait_for_tts_completion()
                 # Always stop audio threads cleanly between turns
                 self.tts_handler.stop_event.set()
@@ -479,7 +494,7 @@ class Main:
             return
         logging.debug("Waiting for TTS to finish processing...")
         not_playing_start_time = None
-        while True:
+        while not self.shutdown_event.is_set():
             # >>> NEW: detect barge-in during TTS playout
             if self.ctrl.barge_event.is_set():
                 logging.debug("Barge detected during TTS playout; cancelling now.")
@@ -508,6 +523,46 @@ class Main:
             self.tts_handler.engine.shutdown()
             logging.debug("TTS shutdown complete.")
 
+    def _install_signal_handlers(self):
+        def _handler(signum, frame):
+            self._sigint_count += 1
+            if self._sigint_count == 1:
+                print("\n^C received — shutting down gracefully...")
+                self._begin_shutdown()
+            else:
+                print("\n^C again — forcing exit.")
+                os._exit(1)  # last resort; avoid hanging forever
+        signal.signal(signal.SIGINT, _handler)
+        signal.signal(signal.SIGTERM, _handler)
+
+    def _begin_shutdown(self):
+        """One-shot graceful shutdown: cancel everything and unblock any waits."""
+        if self.shutdown_event.is_set():
+            return
+        self.shutdown_event.set()
+
+        # cancel AI work and audio immediately
+        try:
+            self._cancel_ai_now()
+        except Exception:
+            pass
+
+        # stop background threads
+        try:
+            self.mic_watcher.stop()
+        except Exception:
+            pass
+        try:
+            self.stt_worker.stop()
+        except Exception:
+            pass
+
+        # unblock the main loop if it's waiting on input_queue.get()
+        try:
+            self.ctrl.input_queue.put_nowait(None)   # sentinel
+        except Exception:
+            pass
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Voice chat runner")
     parser.add_argument("-p", "--prompt-file", dest="prompt_file", default=None, help="Path to file to use for prompt parameters")
@@ -519,4 +574,12 @@ if __name__ == '__main__':
 
     config = Config(prompt_file=prompt_file_path, output_file=output_file_path)
     main = Main(config)
-    main.run()
+    try:
+        main.run()
+    except KeyboardInterrupt:
+        main._begin_shutdown()
+    finally:
+        # if some 3rd-party thread refuses to die, force the process to exit
+        if main.shutdown_event.is_set():
+            time.sleep(0.2)
+            os._exit(0)
