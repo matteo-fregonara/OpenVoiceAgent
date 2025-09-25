@@ -85,3 +85,13 @@ pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url [http
 This error indicates that the application is trying to connect to a server that is not running.
 
 **Solution:** If you are using **LM Studio**, make sure you have loaded a model and started the local inference server. You can find the button to start the server in the **Local Server** tab of the LM Studio application.
+
+---
+
+#### `Could not locate cudnn_ops64_9.dll. Please make sure it is in your library path!`
+
+**Solution:** Run command.
+
+```
+pip install "nvidia-cuda-runtime-cu12" "nvidia-cublas-cu12" "nvidia-cudnn-cu12==9.*" "nvidia-cuda-nvrtc-cu12"
+```
