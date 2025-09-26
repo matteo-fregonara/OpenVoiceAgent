@@ -155,7 +155,7 @@ class TTSHandler:
                 last_text = current_text
                 time.sleep(0.01)
             
-            # >>>>> NEW: flush any remaining tail that arrived right as the sentence finished
+            # >>>>> flush any remaining tail that arrived right as the sentence finished
             final_text = sentence.get_text()
             if len(final_text) > len(last_text):
                 tail = final_text[len(last_text):]
@@ -164,7 +164,7 @@ class TTSHandler:
                 if not self.stream.is_playing():
                     self.stream.feed(buffer.gen())
                     self.start_tts()
-            # <<<<< END NEW
+            # <<<<<
             
             if self.dbg_log:
                 print(" - feed finished")
@@ -179,7 +179,7 @@ class TTSHandler:
 
     def tts_sentence_worker_thread(self):
         while not self.stop_event.is_set():
-            # >>> NEW: abort if external interrupt is set
+            # >>> abort if external interrupt is set
             if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
                 self.stop_now()
                 break
@@ -266,7 +266,7 @@ class TTSHandler:
             self.tts_play_thread.join()
         self.engine.shutdown()
 
-    # ===== NEW: immediate stop used for barge-in =====
+    # ===== immediate stop used for barge-in =====
     def stop_now(self):
         """
         Panic stop:
