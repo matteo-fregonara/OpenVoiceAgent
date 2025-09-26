@@ -101,20 +101,21 @@ class TTSHandler:
         if sentence.get_finished():
             sentence_text = sentence.get_text()
             if self.dbg_log:
-                print(f"tts_play_sentence complete sentence found, playing {sentence_text}")
+                logging.debug(f"tts_play_sentence complete sentence found, playing {sentence_text}")
+                print(sentence_text)
             self.stream.feed(sentence_text)
             if self.dbg_log:
-                print("tts_play_sentence [STARTPLAY]")
+                logging.debug("tts_play_sentence [STARTPLAY]")
             if not self.stream.is_playing():
                 self.start_tts()
         else:
             if self.dbg_log:
-                print(f"tts_play_sentence running sentence found, realtime playing")
+                logging.debug(f"tts_play_sentence running sentence found, realtime playing")
             buffer = BufferStream()
             last_text = ""
             if self.dbg_log:
-                print(f"ID: {sentence.id}")
-                print(f"EMOTION: {sentence.emotion}")
+                logging.debug(f"ID: {sentence.id}")
+                logging.debug(f"EMOTION: {sentence.emotion}")
 
             while not sentence.get_finished():
                 current_text = sentence.get_text()
@@ -127,7 +128,7 @@ class TTSHandler:
                 last_text = current_text
                 time.sleep(0.01)
             if self.dbg_log:
-                print(" - feed finished")
+                logging.debug(" - feed finished")
             buffer.stop()
         while self.stream.is_playing():
             time.sleep(0.01)
