@@ -30,7 +30,7 @@
 5. Download the [TTS model](https://drive.google.com/file/d/16WU3U3RIUbLzrUZo9E5hNifvvK-k67WT/view?usp=sharing) and unzip in `models/` directory
 
 6. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
-
+@
 7. Change the TTS model path
 
 In tts_config.json
@@ -45,17 +45,26 @@ In tts_config.json
 ```
 
 
-______
-NATANAEL (me) DO LATER
+### Run Cosyvoice Engine
 
-git submodule update --init --recursive
+1. Initialize Submodules (including Cosyvoice) 
+```
+> git submodule update --init --recursive
+```
 
-testing: put whytorturingme in assetes
+2. Navigate and Install Dependencies
+```
+> cd third_party/cosyvoice
+> pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com
+> pip install resampy
+```
 
-Run pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com in cosyvoice 
+3. Download Model Weights
+```
+> git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B
+```
 
-git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B [supah slow]
-
-update config file
-
-pip install resampy
+4. Run application from root
+```
+> python main.py
+```
