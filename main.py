@@ -45,6 +45,8 @@ class Config:
     prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
     tts_config_file: str = "tts_config.json"
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
+    silence_timeout: float = 5.0
+    silence_token: str = "(says nothing)"
 
 
 def color_text(text, color_code):
@@ -375,7 +377,7 @@ class Main:
         try:
             while not self.shutdown_event.is_set():
                 # Wait for finalized user utterance
-                user_text = self._get_and_drain_input() # drains + merges (empty in batches instead of single items)
+                user_text = self._get_and_drain_input(config.silence_timeout, config.silence_token) # drains + merges (empty in batches instead of single items)
 
                 # print user text
                 print(f"{color_text(user_text, '93')}")
@@ -404,16 +406,20 @@ class Main:
             except: pass
         # ======================================================
 
-    def _get_and_drain_input(self) -> str | None:
+    def _get_and_drain_input(self, silence_timeout: float = 5.0, silence_token: str = "(says nothing)") -> str | None:
         """
-        Blocks for the first item, then drains everything currently queued, and returns
-        a single merged string.
+        Blocks for the first item up to `silence_timeout` seconds.
+            - If nothing arrives, return the `silence_token`.
+            - Otherwise, drain everything currently queued, and returns
+            a single merged string.
         """
         # 1) Block for the first item
-        first = self.ctrl.input_queue.get()  # <- this is your current blocking call
-        if first is None:                    # optional: if you use None as shutdown sentinel
-            return None
+        try:
+            first = self.ctrl.input_queue.get(timeout=silence_timeout)  # <- this is your current blocking call
+        except queue.Empty: # nothing arrived within timeout
+            return silence_token
 
+        # Something arrived
         parts = [first]
 
         # 2) Drain everything that's already there, non-blocking
