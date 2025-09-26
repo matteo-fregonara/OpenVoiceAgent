@@ -374,10 +374,8 @@ class Main:
         # ===== NEW: event-driven loop (no blocking input) =====
         try:
             while not self.shutdown_event.is_set():
-                # Wait for next finalized user utterance
-                user_text = self.ctrl.input_queue.get()
-                if self.should_exit(user_text):
-                    break
+                # Wait for finalized user utterance
+                user_text = self._get_and_drain_input() # drains + merges (empty in batches instead of single items)
 
                 # print user text
                 print(f"{color_text(user_text, '93')}")
@@ -405,6 +403,29 @@ class Main:
                 self.cleanup()
             except: pass
         # ======================================================
+
+    def _get_and_drain_input(self) -> str | None:
+        """
+        Blocks for the first item, then drains everything currently queued, and returns
+        a single merged string.
+        """
+        # 1) Block for the first item
+        first = self.ctrl.input_queue.get()  # <- this is your current blocking call
+        if first is None:                    # optional: if you use None as shutdown sentinel
+            return None
+
+        parts = [first]
+
+        # 2) Drain everything that's already there, non-blocking
+        while True:
+            try:
+                item = self.ctrl.input_queue.get_nowait()
+            except queue.Empty:
+                break
+            parts.append(item)
+
+        merged = " ".join(s.strip() for s in parts if s)
+        return re.sub(r"\s+", " ", merged).strip()
 
     def _cancel_ai_now(self):
         """
@@ -485,9 +506,6 @@ class Main:
                     self.tts_handler.tts_play_thread.join(timeout=1.0)
                 self.tts_handler.shutdown_pyaudio()
             self.ctrl.ai_speaking.clear()
-
-    def should_exit(self, user_text: str) -> bool:
-        return len(user_text) <= 7 and "exit" in user_text.lower()
     
     def wait_for_tts_completion(self):
         if not self.tts_handler:
