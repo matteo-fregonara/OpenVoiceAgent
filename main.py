@@ -8,6 +8,15 @@ extra = [
 ]
 os.environ["PATH"] = os.pathsep.join(extra + [os.environ.get("PATH","")])
 
+# prevent flash attention warnings
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module=r"transformers\.integrations\.sdpa_attention",
+    message=r".*not compiled with flash attention.*",
+)
 
 import os
 import re

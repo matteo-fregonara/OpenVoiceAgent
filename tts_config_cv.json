@@ -4,8 +4,6 @@
   "cosyvoice_prompt_speech": "back-up-wav/whytorturingme.wav",
   "cosyvoice_prompt_text": "You bastards! Why are you torturing me like this?",
   "specific_model": "...",
-  "local_models_path": "models",
   "references_folder": "reference_women",
-  "dbg_log": true,
-  "use_local_model": true
+  "dbg_log": false
 }
