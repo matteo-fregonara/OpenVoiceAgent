@@ -1,11 +1,11 @@
 {
   "engine": "cosyvoice",
-  "cosyvoice_model_path": "C:/Users/naeld/repouni/JIP/jip-klm-OpenAgent/third_party/CosyVoice/pretrained_models/CosyVoice2-0.5B",
-  "cosyvoice_prompt_speech": "C:/Users/naeld/repouni/JIP/jip-klm-OpenAgent/third_party/CosyVoice/asset/whytorturingme.wav",
+  "cosyvoice_model_path": "third_party/CosyVoice/pretrained_models/CosyVoice2-0.5B",
+  "cosyvoice_prompt_speech": "third_party/CosyVoice/asset/whytorturingme.wav",
   "cosyvoice_prompt_text": "You bastards! Why are you torturing me like this?",
   "specific_model": "...",
-  "local_models_path": "C:/Users/naeld/repouni/JIP/jip-klm-OpenAgent/models",
-  "references_folder": "reference_wavs",
+  "local_models_path": "models",
+  "references_folder": "reference_women",
   "dbg_log": true,
   "use_local_model": true
 }
