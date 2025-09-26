@@ -141,18 +141,54 @@ class TTSHandler:
                     emotion = "neutral"
                 emotion_file = emotion + ".wav"
                 path = os.path.join(self.references_folder, emotion_file)
+                # print(path)
+
+                # Get also the txt
+                emotion_file_txt = emotion + ".txt"
+                path_txt = os.path.join(self.references_folder, emotion_file_txt)
+                extracted_text = None 
+                try:
+                    with open(path_txt, 'r', encoding='utf-8') as file:
+                        # Read the entire file content, which is a single line
+                        extracted_text = file.read().strip()
+                        
+                    print(f"Extracted Text: '{extracted_text}'")
+                except FileNotFoundError:
+                    print(f"Error: The file was not found at {path_txt}")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+
+                print(extracted_text)
+
+                # Check if path exists to the speicfic emotion
                 if os.path.exists(path):
                     if self.dbg_log:
                         print(f"Setting TTS Emotion path: {path}")
-                    self.engine.set_cloning_reference(path)
+                    self.engine.set_cloning_reference(path, extracted_text)
                 else:
                     if self.dbg_log:
                         print(f"No emotion found for path: {path}")
                     path = os.path.join(self.references_folder, "neutral.wav")
+
+                    # Check also for the netural txt
+                    path_txt = os.path.join(self.references_folder, "neutral.txt")
+                    extracted_text = None 
+                    try:
+                        with open(path_txt, 'r', encoding='utf-8') as file:
+                            # Read the entire file content, which is a single line
+                            extracted_text = file.read().strip()
+                            
+                        print(f"Extracted Text: '{extracted_text}'")
+                    except FileNotFoundError:
+                        print(f"Error: The file was not found at {path_txt}")
+                    except Exception as e:
+                        print(f"An error occurred: {e}")
+
+                    # So in theory it should find the neutral voice
                     if os.path.exists(path):
                         if self.dbg_log:
                             print(f"Setting neutral: {path}")
-                        self.engine.set_cloning_reference(path)
+                        self.engine.set_cloning_reference(path, extracted_text)
                     else:
                         if self.dbg_log:
                             print(f"CANT FIND EMOTIONS")

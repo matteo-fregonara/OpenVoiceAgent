@@ -27,7 +27,7 @@ class Config:
     use_tts: bool = True
     dbg_log: bool = False
     log_level_nondebug = logging.WARNING
-    references_folder: str = "reference_wavs"
+    references_folder: str = "reference_women"
     stt_model: str = "tiny.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.15

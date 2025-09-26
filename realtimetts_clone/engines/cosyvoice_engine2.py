@@ -29,7 +29,7 @@ class CosyvoiceEngine(BaseEngine):
 
     def set_cloning_reference(self, path, prompt_text=None):
         """Mimic old engine API."""
-        self.prompt_speech = load_wav(path, 16000)
+        self.prompt_speech_16k = load_wav(path, 16000)
         if prompt_text:
             self.prompt_text = prompt_text
         else:
@@ -70,14 +70,16 @@ class CosyvoiceEngine(BaseEngine):
                 break
             elif msg["command"] == "synthesize":
                 text = msg["data"]["text"]
+                updatedSpeech = msg["data"]["prompt_speech_16k"]
+                updatedText = msg["data"]["prompt_text"]
 
-                # # non-streaming inference
-                # # This yields one dict per text chunk
+                # non-streaming inference
+                # This yields one dict per text chunk
                 # all_audio_bytes = b''
                 # for output in model.inference_zero_shot(
                 #     tts_text=text,
-                #     prompt_text=prompt_text,
-                #     prompt_speech_16k=prompt_speech_16k,
+                #     prompt_text=updatedText,
+                #     prompt_speech_16k=updatedSpeech,
                 #     stream=False
                 # ):
                 #     audio_tensor = output['tts_speech']  # shape (1, n_samples)
@@ -88,10 +90,11 @@ class CosyvoiceEngine(BaseEngine):
                 # conn.send(("success", all_audio_bytes))
                 # conn.send(("finished", ""))
 
+                # streaming inference
                 for output in model.inference_zero_shot(
                     tts_text=text,
-                    prompt_text=prompt_text,
-                    prompt_speech_16k=prompt_speech_16k,
+                    prompt_text=updatedText,
+                    prompt_speech_16k=updatedSpeech,
                     stream=True
                 ):
                     audio_tensor = output['tts_speech']
@@ -104,8 +107,16 @@ class CosyvoiceEngine(BaseEngine):
     
 
     def synthesize(self, text: str):
+        # non-streaming inference
         # with self._synthesize_lock:
-        #     self.parent_synthesize_pipe.send({"command": "synthesize", "data": {"text": text}})
+        #     self.parent_synthesize_pipe.send({
+        #         "command": "synthesize",
+        #         "data": {
+        #             "text": text,
+        #             "prompt_speech_16k": self.prompt_speech_16k,
+        #             "prompt_text": self.prompt_text
+        #         }
+        #     })
         #     status, result = self.parent_synthesize_pipe.recv()
         #     # You’ll get a single big audio bytes block
         #     while "finished" not in status:
@@ -113,8 +124,16 @@ class CosyvoiceEngine(BaseEngine):
         #             self.queue.put(result)  # put the whole audio in the queue
         #         status, result = self.parent_synthesize_pipe.recv()
 
+        # streaming inference
         with self._synthesize_lock:
-            self.parent_synthesize_pipe.send({"command": "synthesize", "data": {"text": text}})
+            self.parent_synthesize_pipe.send({
+                "command": "synthesize",
+                "data": {
+                    "text": text,
+                    "prompt_speech_16k": self.prompt_speech_16k,
+                    "prompt_text": self.prompt_text
+                }
+            })
             while True:
                 status, result = self.parent_synthesize_pipe.recv()
                 if status == "chunk":
