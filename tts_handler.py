@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import queue
 import time
@@ -152,22 +153,22 @@ class TTSHandler:
                         # Read the entire file content, which is a single line
                         extracted_text = file.read().strip()
                         
-                    print(f"Extracted Text: '{extracted_text}'")
+                    logging.debug(f"Extracted Text: '{extracted_text}'")
                 except FileNotFoundError:
-                    print(f"Error: The file was not found at {path_txt}")
+                    logging.debug(f"Error: The file was not found at {path_txt}")
                 except Exception as e:
-                    print(f"An error occurred: {e}")
+                    logging.debug(f"An error occurred: {e}")
 
-                print(extracted_text)
+                logging.debug(extracted_text)
 
                 # Check if path exists to the speicfic emotion
                 if os.path.exists(path):
                     if self.dbg_log:
-                        print(f"Setting TTS Emotion path: {path}")
+                        logging.debug(f"Setting TTS Emotion path: {path}")
                     self.engine.set_cloning_reference(path, extracted_text)
                 else:
                     if self.dbg_log:
-                        print(f"No emotion found for path: {path}")
+                        logging.debug(f"No emotion found for path: {path}")
                     path = os.path.join(self.references_folder, "neutral.wav")
 
                     # Check also for the netural txt
@@ -178,27 +179,27 @@ class TTSHandler:
                             # Read the entire file content, which is a single line
                             extracted_text = file.read().strip()
                             
-                        print(f"Extracted Text: '{extracted_text}'")
+                        logging.debug(f"Extracted Text: '{extracted_text}'")
                     except FileNotFoundError:
-                        print(f"Error: The file was not found at {path_txt}")
+                        logging.debug(f"Error: The file was not found at {path_txt}")
                     except Exception as e:
-                        print(f"An error occurred: {e}")
+                        logging.debug(f"An error occurred: {e}")
 
                     # So in theory it should find the neutral voice
                     if os.path.exists(path):
                         if self.dbg_log:
-                            print(f"Setting neutral: {path}")
+                            logging.debug(f"Setting neutral: {path}")
                         self.engine.set_cloning_reference(path, extracted_text)
                     else:
                         if self.dbg_log:
-                            print(f"CANT FIND EMOTIONS")
+                            logging.debug(f"CANT FIND EMOTIONS")
 
                 if self.dbg_log:
-                    print(f"TTS found a sentence, running: {sentence.get_finished()}")
-                    print(f" - finished: {sentence.get_finished()}")
-                    print(f" - retrieved: {sentence.retrieved}")
-                    print(f" - popped: {sentence.popped}")
-                    print(f" - id: {sentence.id}")
+                    logging.debug(f"TTS found a sentence, running: {sentence.get_finished()}")
+                    logging.debug(f" - finished: {sentence.get_finished()}")
+                    logging.debug(f" - retrieved: {sentence.retrieved}")
+                    logging.debug(f" - popped: {sentence.popped}")
+                    logging.debug(f" - id: {sentence.id}")
                 self.tts_play_sentence(sentence)
             
             time.sleep(0.01)
