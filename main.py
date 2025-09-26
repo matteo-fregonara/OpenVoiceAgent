@@ -24,7 +24,6 @@ import time
 import json
 from typing import List
 from dataclasses import dataclass
-from tts_handler import TTSHandler
 from RealtimeSTT import AudioToTextRecorder
 import logging
 import argparse
@@ -42,7 +41,7 @@ class Config:
     stt_language: str = "en"
     stt_silence_duration: float = 0.15
     prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
-    tts_config_file: str = "tts_config_cv.json" # default; can be overridden via --tts-config
+    tts_config_file: str = "tts_config_cosyvoice.json" # default; can be overridden via --tts-config
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
 
 
@@ -79,7 +78,16 @@ class Main:
             from llm_lmstudio.llm_handler import LLMHandler
         self.llm_handler = LLMHandler()
 
-
+        # set up correct tts engine according to config
+        with open(config.tts_config_file, 'r') as f:
+            tts_config = json.load(f)
+        if tts_config['engine'] == "cosyvoice":
+            from tts_handler_cosyvoice import TTSHandler
+        elif tts_config['engine'] == 'xtts':
+            from tts_handler_xtts import TTSHandler
+        else:
+            print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
+            from tts_handler_cosyvoice import TTSHandler
         self.tts_handler = TTSHandler(config.tts_config_file) if config.use_tts else None        
         
         # Token processing state

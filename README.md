@@ -31,21 +31,22 @@
 
 6. Set up the TTS model
 
-- If using XTTSv2: 
+- If using XTTSv2: (CURRENTLY BROKEN)
 
     1. Download the [TTS model](https://drive.google.com/file/d/16WU3U3RIUbLzrUZo9E5hNifvvK-k67WT/view?usp=sharing) and unzip in `models/` directory
 
     2. Change the TTS model path
 
-        In tts_config.json
+        In tts_config.json, for example:
         ```
-        "local_models_path": "YOUR_PATH_HERE/jip-klm-OpenAgent/models",
+        "specific_model": "XTTS_Lasinya",
+        "local_models_path": "models",
         ```
 
     3. Run the application
 
         ```
-        > python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config.json
+        > python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_xtts.json
         ```
         - `prompt-file`: points to the JSON file containing the system prompt to the LLM
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
@@ -72,7 +73,7 @@
 
     4. Run application from root
         ```
-        > python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_cv.json
+        > python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
         ```
 
         - `prompt-file`: points to the JSON file containing the system prompt to the LLM
