@@ -1,12 +1,14 @@
 import json
+import logging
 import threading
 import queue
 import time
 import os
 import pyaudio
-from RealtimeTTS import TextToAudioStream, CoquiEngine
+from realtimetts_clone.text_to_stream import TextToAudioStream
 from lib.sentencequeue import ThreadSafeSentenceQueue, Sentence
 from lib.bufferstream import BufferStream
+from realtimetts_clone.engines.cosyvoice_engine import CosyvoiceEngine
 
 class TTSHandler:
     def __init__(self, config_file='tts_config.json'):
@@ -24,7 +26,7 @@ class TTSHandler:
         self.pyChannels = 1
         self.pySampleRate = 24000
         self.pyOutput_device_index = None
-
+        
         # ===== NEW: hold handles to threads/streams for quick stop =====
         self.pyaudio_instance = None
         self.pystream = None
@@ -35,22 +37,32 @@ class TTSHandler:
         # ===============================================================
 
         print("Loading TTS")
-        if self.config['use_local_model']:
-            print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
-            self.engine = CoquiEngine(
-                specific_model=self.config['specific_model'],
-                local_models_path=self.config['local_models_path']
-            )
-        else:
-            self.engine = CoquiEngine()
+        # fix this later
+        # if self.config['use_local_model']:
+        #     print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
+        #     self.engine = CoquiEngine(
+        #         specific_model=self.config['specific_model'],
+        #         local_models_path=self.config['local_models_path']
+        #     )
+        # else:
+        #     self.engine = CoquiEngine()
+
+
+        self.engine = CosyvoiceEngine(
+            model_path=self.config['cosyvoice_model_path'],
+            prompt_speech=self.config['cosyvoice_prompt_speech'],
+            prompt_text=self.config['cosyvoice_prompt_text']
+        )
         
         self.stream = TextToAudioStream(self.engine, muted=True)
 
         if self.dbg_log:
             print("Test Play TTS")
 
-        self.stream.feed("hi!")  # only small warmup
-        self.stream.play(log_synthesized_text=True, muted=True)
+        # self.stream.feed("hi!")  # only small warmup
+        # self.stream.play(log_synthesized_text=True, muted=True)
+
+        # self.engine.synthesize("Hello world")
 
     def initialize_pyaudio(self):
         self.stop_event = threading.Event()
@@ -124,20 +136,21 @@ class TTSHandler:
             if not sentence_text or not sentence_text.strip(): # don't play an empty sentence
                 return
             if self.dbg_log:
-                print(f"tts_play_sentence complete sentence found, playing {sentence_text}")
+                logging.debug(f"tts_play_sentence complete sentence found, playing {sentence_text}")
+                print(sentence_text)
             self.stream.feed(sentence_text)
             if self.dbg_log:
-                print("tts_play_sentence [STARTPLAY]")
+                logging.debug("tts_play_sentence [STARTPLAY]")
             if not self.stream.is_playing():
                 self.start_tts()
         else:
             if self.dbg_log:
-                print(f"tts_play_sentence running sentence found, realtime playing")
+                logging.debug(f"tts_play_sentence running sentence found, realtime playing")
             buffer = BufferStream()
             last_text = ""
             if self.dbg_log:
-                print(f"ID: {sentence.id}")
-                print(f"EMOTION: {sentence.emotion}")
+                logging.debug(f"ID: {sentence.id}")
+                logging.debug(f"EMOTION: {sentence.emotion}")
 
             while not sentence.get_finished():
                 # ===== EARLY EXIT if stopped =====
@@ -154,20 +167,20 @@ class TTSHandler:
                         self.start_tts()
                 last_text = current_text
                 time.sleep(0.01)
-            
-            # >>>>> flush any remaining tail that arrived right as the sentence finished
-            final_text = sentence.get_text()
-            if len(final_text) > len(last_text):
-                tail = final_text[len(last_text):]
-                buffer.add(tail)
-                # If we never started playback (short sentence, etc.), start now
-                if not self.stream.is_playing():
-                    self.stream.feed(buffer.gen())
-                    self.start_tts()
-            # <<<<<
+
+                # >>>>> flush any remaining tail that arrived right as the sentence finished
+                final_text = sentence.get_text()
+                if len(final_text) > len(last_text):
+                    tail = final_text[len(last_text):]
+                    buffer.add(tail)
+                    # If we never started playback (short sentence, etc.), start now
+                    if not self.stream.is_playing():
+                        self.stream.feed(buffer.gen())
+                        self.start_tts()
+                # <<<<<
             
             if self.dbg_log:
-                print(" - feed finished")
+                logging.debug(" - feed finished")
             buffer.stop()
         while self.stream.is_playing():
             # ===== EARLY EXIT during tail play if stopped =====
@@ -191,28 +204,64 @@ class TTSHandler:
                     emotion = "neutral"
                 emotion_file = emotion + ".wav"
                 path = os.path.join(self.references_folder, emotion_file)
+                # print(path)
+
+                # Get also the txt
+                emotion_file_txt = emotion + ".txt"
+                path_txt = os.path.join(self.references_folder, emotion_file_txt)
+                extracted_text = None 
+                try:
+                    with open(path_txt, 'r', encoding='utf-8') as file:
+                        # Read the entire file content, which is a single line
+                        extracted_text = file.read().strip()
+                        
+                    logging.debug(f"Extracted Text: '{extracted_text}'")
+                except FileNotFoundError:
+                    logging.debug(f"Error: The file was not found at {path_txt}")
+                except Exception as e:
+                    logging.debug(f"An error occurred: {e}")
+
+                logging.debug(extracted_text)
+
+                # Check if path exists to the speicfic emotion
                 if os.path.exists(path):
                     if self.dbg_log:
-                        print(f"Setting TTS Emotion path: {path}")
-                    self.engine.set_cloning_reference(path)
+                        logging.debug(f"Setting TTS Emotion path: {path}")
+                    self.engine.set_cloning_reference(path, extracted_text)
                 else:
                     if self.dbg_log:
-                        print(f"No emotion found for path: {path}")
+                        logging.debug(f"No emotion found for path: {path}")
                     path = os.path.join(self.references_folder, "neutral.wav")
+
+                    # Check also for the netural txt
+                    path_txt = os.path.join(self.references_folder, "neutral.txt")
+                    extracted_text = None 
+                    try:
+                        with open(path_txt, 'r', encoding='utf-8') as file:
+                            # Read the entire file content, which is a single line
+                            extracted_text = file.read().strip()
+                            
+                        logging.debug(f"Extracted Text: '{extracted_text}'")
+                    except FileNotFoundError:
+                        logging.debug(f"Error: The file was not found at {path_txt}")
+                    except Exception as e:
+                        logging.debug(f"An error occurred: {e}")
+
+                    # So in theory it should find the neutral voice
                     if os.path.exists(path):
                         if self.dbg_log:
-                            print(f"Setting neutral: {path}")
-                        self.engine.set_cloning_reference(path)
+                            logging.debug(f"Setting neutral: {path}")
+                        self.engine.set_cloning_reference(path, extracted_text)
                     else:
                         if self.dbg_log:
-                            print(f"CANT FIND EMOTIONS")
+                            logging.debug(f"CANT FIND EMOTIONS")
 
                 if self.dbg_log:
-                    print(f"TTS found a sentence, running: {sentence.get_finished()}")
-                    print(f" - finished: {sentence.get_finished()}")
-                    print(f" - retrieved: {sentence.retrieved}")
-                    print(f" - popped: {sentence.popped}")
-                    print(f" - id: {sentence.id}")
+                    logging.debug(f"TTS found a sentence, running: {sentence.get_finished()}")
+                    logging.debug(f" - finished: {sentence.get_finished()}")
+                    logging.debug(f" - retrieved: {sentence.retrieved}")
+                    logging.debug(f" - popped: {sentence.popped}")
+                    logging.debug(f" - id: {sentence.id}")
                 self.tts_play_sentence(sentence)
             
             time.sleep(0.01)
@@ -315,3 +364,4 @@ class TTSHandler:
 
         # Important: allow subsequent turns
         # (recreate fresh stop_event when initialize_pyaudio() is called next)
+
