@@ -10,7 +10,7 @@ from realtimetts_clone.text_to_stream import TextToAudioStream
 from realtimetts_clone.engines.coqui_engine import CoquiEngine
 from lib.sentencequeue import ThreadSafeSentenceQueue, Sentence
 from lib.bufferstream import BufferStream
-from realtimetts_clone.engines.cosyvoice_engine2 import CosyvoiceEngine
+from realtimetts_clone.engines.cosyvoice_engine import CosyvoiceEngine
 
 class TTSHandler:
     def __init__(self, config_file='tts_config.json'):
