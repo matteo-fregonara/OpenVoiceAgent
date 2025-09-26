@@ -243,6 +243,9 @@ class Main:
         self.shutdown_event = threading.Event() # global exit application flag
         self._sigint_count = 0
 
+        # Start gate variable
+        self._first_turn = True
+
         self._install_signal_handlers()
     
     def setup_logging(self):
@@ -359,6 +362,16 @@ class Main:
         self.print_character_info()
         system_prompt = self.get_system_prompt()
 
+        # --- Prompt user to start scenario (models are already loaded in __init__) ---
+        try:
+            print("\nModels are loaded and ready.", flush=True)
+            input(color_text("Start scenario?  (press Enter to begin, Ctrl+C to exit) ", "32"))
+        except KeyboardInterrupt:
+            # Allow clean exit BEFORE any background threads start
+            if hasattr(self, "_begin_shutdown"):
+                self._begin_shutdown()
+            return
+
         # Instead of having a while loop that loops between user input and AI input
         # Need multithreading where there is one thread to process user input and whenever the user is speaking, the AI thread gets interrupted
         # Meanwhile the AI thread processes any previous user input and responds as normal
@@ -381,6 +394,9 @@ class Main:
 
                 # print user text
                 print(f"{color_text(user_text, '93')}")
+
+                # Change first turn variable
+                if self._first_turn: self._first_turn = False
 
                 # If the user started speaking during AI speech, cancel current streams
                 if self.ctrl.barge_event.is_set() and self.ctrl.ai_speaking.is_set():
@@ -415,7 +431,10 @@ class Main:
         """
         # 1) Block for the first item
         try:
-            first = self.ctrl.input_queue.get(timeout=silence_timeout)  # <- this is your current blocking call
+            if self._first_turn:
+                first = self.ctrl.input_queue.get() # no timeout on the first turn
+            else:
+                first = self.ctrl.input_queue.get(timeout=silence_timeout)  # <- this is your current blocking call
         except queue.Empty: # nothing arrived within timeout
             return silence_token
 
