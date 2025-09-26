@@ -1,0 +1,9 @@
+{
+  "engine": "cosyvoice",
+  "cosyvoice_model_path": "third_party/CosyVoice/pretrained_models/CosyVoice2-0.5B",
+  "cosyvoice_prompt_speech": "back-up-wav/whytorturingme.wav",
+  "cosyvoice_prompt_text": "You bastards! Why are you torturing me like this?",
+  "specific_model": "...",
+  "references_folder": "reference_women",
+  "dbg_log": false
+}

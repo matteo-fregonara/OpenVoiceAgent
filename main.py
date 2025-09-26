@@ -8,6 +8,15 @@ extra = [
 ]
 os.environ["PATH"] = os.pathsep.join(extra + [os.environ.get("PATH","")])
 
+# prevent flash attention warnings
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module=r"transformers\.integrations\.sdpa_attention",
+    message=r".*not compiled with flash attention.*",
+)
 
 import os
 import re
@@ -15,7 +24,6 @@ import time
 import json
 from typing import List
 from dataclasses import dataclass
-from tts_handler import TTSHandler
 from RealtimeSTT import AudioToTextRecorder
 import logging
 import argparse
@@ -28,12 +36,12 @@ class Config:
     use_tts: bool = True
     dbg_log: bool = False
     log_level_nondebug = logging.WARNING
-    references_folder: str = "reference_wavs"
+    references_folder: str = "reference_women"
     stt_model: str = "tiny.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.15
     prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
-    tts_config_file: str = "tts_config.json"
+    tts_config_file: str = "tts_config_cosyvoice.json" # default; can be overridden via --tts-config
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
 
 
@@ -70,7 +78,16 @@ class Main:
             from llm_lmstudio.llm_handler import LLMHandler
         self.llm_handler = LLMHandler()
 
-
+        # set up correct tts engine according to config
+        with open(config.tts_config_file, 'r') as f:
+            tts_config = json.load(f)
+        if tts_config['engine'] == "cosyvoice":
+            from tts_handler_cosyvoice import TTSHandler
+        elif tts_config['engine'] == 'xtts':
+            from tts_handler_xtts import TTSHandler
+        else:
+            print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
+            from tts_handler_cosyvoice import TTSHandler
         self.tts_handler = TTSHandler(config.tts_config_file) if config.use_tts else None        
         
         # Token processing state
@@ -274,11 +291,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Voice chat runner")
     parser.add_argument("-p", "--prompt-file", dest="prompt_file", default=None, help="Path to file to use for prompt parameters")
     parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
+    parser.add_argument("-t", "--tts-config", dest="tts_config", default=None, help="Path to file to use for tts configuration parameters")
     args = parser.parse_args()
 
     prompt_file_path = args.prompt_file or Config.prompt_file
     output_file_path = args.output_file or Config.output_file
+    tts_config_path = args.tts_config or Config.tts_config
 
-    config = Config(prompt_file=prompt_file_path, output_file=output_file_path)
+    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path)
     main = Main(config)
     main.run()
