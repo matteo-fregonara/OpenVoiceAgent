@@ -16,6 +16,8 @@ from cosyvoice.utils.file_utils import load_wav
 import numpy as np
 import pyaudio
 
+os.environ["TQDM_DISABLE"] = "1"
+
 class CosyvoiceEngine(BaseEngine):
     def __init__(self, model_path, prompt_speech, prompt_text, device='cpu'):
         super().__init__()
