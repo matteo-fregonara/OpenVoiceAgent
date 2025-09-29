@@ -22,9 +22,9 @@
 
 4. Install the required dependencies (assuming gpu)
 ```
-> pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
-> pip install -r requirements.txt 
-> conda install -c conda-forge ffmpeg=4.3.1 
+pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt 
+conda install -c conda-forge ffmpeg=4.3.1 
 ```
 
 5. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
