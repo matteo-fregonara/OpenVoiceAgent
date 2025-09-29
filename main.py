@@ -18,6 +18,13 @@ warnings.filterwarnings(
     message=r".*not compiled with flash attention.*",
 )
 
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module=r"cosyvoice\.cli\.model",
+    message=r".*is deprecated. Please use.*",
+)
+
 import os
 import re
 import time
@@ -48,7 +55,7 @@ class Config:
     dbg_log: bool = False
     log_level_nondebug = logging.WARNING
     references_folder: str = "reference_women"
-    stt_model: str = "tiny.en"
+    stt_model: str = "small.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.2
     prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
