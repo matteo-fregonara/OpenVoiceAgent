@@ -84,7 +84,7 @@ conda install -c conda-forge ffmpeg=4.3.1
 
         #### PoC Tests
 
-        If you want to run a PoC test as defined in our research plan, run:
+        If you want to run a PoC test as defined in our research plan, replace `{your conda environment}` in `set "PYTHON_EXE=%USERPROFILE%\miniconda3\envs\{your conda environment}\python.exe"` in the .bat file you would like to run, and execute:
         ```
         poc_tests\pX_sY.bat
         ```
