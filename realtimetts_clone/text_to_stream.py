@@ -507,7 +507,7 @@ class TextToAudioStream:
 
                         synthesis_successful = False
                         if log_synthesized_text:
-                            console.debug(f"\033[96m\033[1m⚡ synthesizing\033[0m \033[37m→ \033[2m'\033[22m{sentence}\033[2m'\033[0m")
+                            logging.debug(f"\033[96m\033[1m⚡ synthesizing\033[0m \033[37m→ \033[2m'\033[22m{sentence}\033[2m'\033[0m")
 
                         while not synthesis_successful:
                             try:
