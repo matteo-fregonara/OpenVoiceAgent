@@ -507,17 +507,20 @@ class Main:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Voice chat runner")
-    parser.add_argument("-c", "--char-gender", dest="char_gender", default=None, help="Gender of the character")
-    parser.add_argument("-s", "--scenario", dest="scenario", default=None, help="Scenario to run")
-    parser.add_argument("-g", "--guidelines", dest="guidelines", default=None, help="Amount of guidelines for LLM prompt")
+    parser.add_argument("-c", "--char-gender", dest="char_gender", default=None, help="Gender of the character (female or male)")
+    parser.add_argument("-s", "--scenario", dest="scenario", default=None, help="Scenario to run (1, 2, 3)")
+    parser.add_argument("-g", "--guidelines", dest="guidelines", default=None, help="Amount of guidelines for LLM prompt (short or long)")
     parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
     parser.add_argument("-t", "--tts-config", dest="tts_config", default=None, help="Path to file to use for tts configuration parameters")
     args = parser.parse_args()
 
+    char_gender = args.char_gender or Config.char_gender
+    scenario = args.scenario or Config.scenario
+    guidelines = args.guidelines or Config.guidelines
     output_file_path = args.output_file or Config.output_file
     tts_config_path = args.tts_config or Config.tts_config
 
-    config = Config(output_file=output_file_path, tts_config_file=tts_config_path)
+    config = Config(char_gender=char_gender, scenario=scenario, guidelines=guidelines, output_file=output_file_path, tts_config_file=tts_config_path)
     main = Main(config)
     try:
         main.run()
