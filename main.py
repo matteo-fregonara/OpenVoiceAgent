@@ -63,6 +63,7 @@ class Config:
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
     silence_timeout: float = 5.0
     silence_token: str = "(says nothing)"
+    start_message: str = "Start scenario?  (press Enter to begin, Ctrl+C to exit) "
 
 
 def color_text(text, color_code):
@@ -238,7 +239,7 @@ class Main:
         # --- Prompt user to start scenario (models are already loaded in __init__) ---
         try:
             print("\nModels are loaded and ready.", flush=True)
-            input(color_text("Start scenario?  (press Enter to begin, Ctrl+C to exit) ", "32"))
+            input(color_text(config.start_message, "32"))
         except KeyboardInterrupt:
             # Allow clean exit BEFORE any background threads start
             if hasattr(self, "_begin_shutdown"):
@@ -484,13 +485,15 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--prompt-file", dest="prompt_file", default=None, help="Path to file to use for prompt parameters")
     parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
     parser.add_argument("-t", "--tts-config", dest="tts_config", default=None, help="Path to file to use for tts configuration parameters")
+    parser.add_argument("-s", "--start-message", dest="start_message", default=None, help="String message to print before scenario start")
     args = parser.parse_args()
 
     prompt_file_path = args.prompt_file or Config.prompt_file
     output_file_path = args.output_file or Config.output_file
     tts_config_path = args.tts_config or Config.tts_config
+    start_message = args.start_message or Config.start_message
 
-    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path)
+    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path, start_message=start_message)
     main = Main(config)
     try:
         main.run()
