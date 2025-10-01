@@ -1,4 +1,4 @@
-@echo off
+
 rem Set the python address used to run the file (CHANGE TO CORRECT ENVIRONMENT)
 set "PYTHON_EXE=%USERPROFILE%\miniconda3\envs\emovc\python.exe"
 

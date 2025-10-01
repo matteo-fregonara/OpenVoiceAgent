@@ -9,15 +9,15 @@
 2. Initialize your environment (in miniconda)
 
 ```
-> conda create -n jip-klm python=3.10.9
-> conda activate jip-klm
+conda create -n jip-klm python=3.10.9
+conda activate jip-klm
 ```
 
 3. Clone this repository
 
 ```
-> git clone https://github.com/mfregonara/jip-klm-OpenAgent.git
-> cd jip-klm-OpenAgent
+git clone https://github.com/mfregonara/jip-klm-OpenAgent.git
+cd jip-klm-OpenAgent
 ```
 
 4. Install the required dependencies (assuming gpu)
@@ -46,7 +46,7 @@ conda install -c conda-forge ffmpeg=4.3.1
     3. Run the application
 
         ```
-        > python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_xtts.json
+        python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_xtts.json
         ```
         - `prompt-file`: points to the JSON file containing the system prompt to the LLM
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
@@ -56,24 +56,24 @@ conda install -c conda-forge ffmpeg=4.3.1
 
     1. Initialize Submodules (including Cosyvoice) 
         ```
-        > git submodule update --init --recursive
+        git submodule update --init --recursive
         ```
 
     2. Navigate and Install Dependencies
         ```
-        > cd third_party/cosyvoice
-        > pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com
-        > pip install resampy
+        cd third_party/cosyvoice
+        pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com
+        pip install resampy
         ```
 
     3. Download Model Weights
         ```
-        > git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B
+        git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B
         ```
 
     4. Run application from root
         ```
-        > python main.py --char-gender female --scenario 1 --guidelines long --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
+        python main.py --char-gender female --scenario 1 --guidelines long --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
         ```
 
         - `char-gender`: choose which gender you'd like to talk to. Options: female, male
@@ -81,6 +81,16 @@ conda install -c conda-forge ffmpeg=4.3.1
         - `guidelines`: choose if you would like the LLM to be guided by more guidelines (long) or less (short). Options: long, short
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
         - `tts-config`: points to the json file that contains the parameters for the tts engine
+
+        #### PoC Tests
+
+        If you want to run a PoC test as defined in our research plan, run:
+        ```
+        poc_tests\pX_sY.bat
+        ```
+
+        - `X` should be the participant number (1-9)
+        - `Y` should be the scenario number (1-3)
 
 ### Troubleshooting
 
