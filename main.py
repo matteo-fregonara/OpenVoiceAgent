@@ -58,11 +58,13 @@ class Config:
     stt_model: str = "small.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.2
-    prompt_file: str = "prompts/default.json"    # default; can be overridden via --prompt-file
     tts_config_file: str = "tts_config_cosyvoice.json" # default; can be overridden via --tts-config
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
     silence_timeout: float = 5.0
     silence_token: str = "(says nothing)"
+    char_gender: str = "female"
+    scenario: str = "1"
+    guidelines: str = "long"
 
 
 def color_text(text, color_code):
@@ -75,8 +77,27 @@ class Main:
         self.valid_emotions = self.get_valid_emotions()
 
         # Load chat parameters
-        with open(config.prompt_file, 'r') as f:
-            self.chat_params = json.load(f)
+        prompt_file_path = 'prompts/default.json'
+        with open(prompt_file_path, 'r') as f:
+            prompt_json = json.load(f)
+
+            if char_gender == "female":
+                self.chat_params["char"] = prompt_json["char_female"]
+            else:
+                self.chat_params["char"] = prompt_json["char_male"]
+
+            match scenario:
+                case "1":
+                    self.chat_params["scenario"] = prompt_json["scenario1"]
+                case "2":
+                    self.chat_params["scenario"] = prompt_json["scenario2"]
+                case "3":
+                    self.chat_params["scenario"] = prompt_json["scenario3"]
+
+            if guidelines == "long":
+                self.chat_params["system_prompt"] = prompt_json["system_prompt_long"]
+            else:
+                self.chat_params["system_prompt"] = prompt_json["system_prompt_short"]
 
         print("Loading STT")
         self.recorder = AudioToTextRecorder(
@@ -142,7 +163,6 @@ class Main:
         char_name = color_text(self.chat_params['char'], '96')  # Light Cyan
         user_name = color_text(self.chat_params['user'], '93')  # Light Yellow
         char_desc = self.chat_params['char_description'].format(char=self.chat_params['char'])
-        user_desc = self.chat_params['user_description'].format(user=self.chat_params['user'])
         scenario = color_text(self.chat_params['scenario'].format(char=self.chat_params['char'], user=self.chat_params['user']), '94')  # Light Blue
 
         print(f"Assistant Name: {char_name}")
@@ -168,7 +188,6 @@ class Main:
             char=self.chat_params['char'],
             user=self.chat_params['user'],
             char_description=self.chat_params['char_description'].format(char=self.chat_params['char']),
-            user_description=self.chat_params['user_description'].format(user=self.chat_params['user']),
             scenario=self.chat_params['scenario'].format(char=self.chat_params['char'], user=self.chat_params['user']),
             valid_emotions_str=valid_emotions_str
         )
@@ -481,16 +500,17 @@ class Main:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Voice chat runner")
-    parser.add_argument("-p", "--prompt-file", dest="prompt_file", default=None, help="Path to file to use for prompt parameters")
+    parser.add_argument("-c", "--char-gender", dest="char_gender", default=None, help="Gender of the character")
+    parser.add_argument("-s", "--scenario", dest="scenario", default=None, help="Scenario to run")
+    parser.add_argument("-g", "--guidelines", dest="guidelines", default=None, help="Amount of guidelines for LLM prompt")
     parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
     parser.add_argument("-t", "--tts-config", dest="tts_config", default=None, help="Path to file to use for tts configuration parameters")
     args = parser.parse_args()
 
-    prompt_file_path = args.prompt_file or Config.prompt_file
     output_file_path = args.output_file or Config.output_file
     tts_config_path = args.tts_config or Config.tts_config
 
-    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path)
+    config = Config(output_file=output_file_path, tts_config_file=tts_config_path)
     main = Main(config)
     try:
         main.run()
