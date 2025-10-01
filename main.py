@@ -81,12 +81,12 @@ class Main:
         with open(prompt_file_path, 'r') as f:
             prompt_json = json.load(f)
 
-            if char_gender == "female":
+            if self.char_gender == "female":
                 self.chat_params["char"] = prompt_json["char_female"]
             else:
                 self.chat_params["char"] = prompt_json["char_male"]
 
-            match scenario:
+            match self.scenario:
                 case "1":
                     self.chat_params["scenario"] = prompt_json["scenario1"]
                 case "2":
@@ -94,7 +94,7 @@ class Main:
                 case "3":
                     self.chat_params["scenario"] = prompt_json["scenario3"]
 
-            if guidelines == "long":
+            if self.guidelines == "long":
                 self.chat_params["system_prompt"] = prompt_json["system_prompt_long"]
             else:
                 self.chat_params["system_prompt"] = prompt_json["system_prompt_short"]
