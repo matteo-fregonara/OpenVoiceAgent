@@ -75,6 +75,7 @@ class Main:
         self.config = config
         self.setup_logging()
         self.valid_emotions = self.get_valid_emotions()
+        self.chat_params = dict()
 
         # Load chat parameters
         prompt_file_path = 'prompts/default.json'
