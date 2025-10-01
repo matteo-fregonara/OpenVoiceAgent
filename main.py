@@ -127,7 +127,7 @@ class Main:
         else:
             print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
             from tts_handler_cosyvoice import TTSHandler
-        self.tts_handler = TTSHandler(config.tts_config_file) if config.use_tts else None        
+        self.tts_handler = TTSHandler(config.tts_config_file, config.char_gender) if config.use_tts else None        
         
         # Token processing state
         self.plain_text = ""
