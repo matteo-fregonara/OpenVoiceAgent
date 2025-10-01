@@ -589,8 +589,7 @@ class TextToAudioStream:
                 for sentence in chunk_generator:
                     if abort_event.is_set():
                         break
-                    sentence = sentence.strip()
-                    if sentence:
+                    if sentence.strip():
                         sentence_queue.put(sentence)
                     else:
                         continue  # Skip empty sentences
@@ -884,7 +883,9 @@ class TextToAudioStream:
             elif is_closing_trailer(chunk) and synthesis_chunk and endswith_punct(synthesis_chunk):
                 synthesis_chunk = synthesis_chunk.rstrip() + chunk + " "
             else:
-                synthesis_chunk += chunk + " "
+                if synthesis_chunk and not synthesis_chunk.endswith(" ") and not chunk.startswith(" "):
+                    synthesis_chunk += " "
+                synthesis_chunk += chunk
 
             # Determine buffered seconds
             if self.player:
@@ -919,7 +920,7 @@ class TextToAudioStream:
                     if is_punct_run(synthesis_chunk):
                         synthesis_chunk = ""
                         continue
-                    yield synthesis_chunk
+                    yield synthesis_chunk.rstrip()
                     synthesis_chunk = ""
             else:
                 logging.info(
@@ -934,5 +935,5 @@ class TextToAudioStream:
                     f'-- ["{synthesis_chunk}"], buffered {buffered_audio_seconds:.1f}s'
                 )
 
-            # Yield the remaining synthesis_chunk
-            yield synthesis_chunk
+            # Yield the remaining synthesis_chunk, stripping only trailing spaces
+            yield synthesis_chunk.rstrip()
