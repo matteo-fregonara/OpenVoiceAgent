@@ -4,7 +4,9 @@ set "PYTHON_EXE=%USERPROFILE%\miniconda3\envs\emovc\python.exe"
 
 rem Run the command
 "%PYTHON_EXE%" "main.py" ^
-  --prompt-file "prompts\male_char\scenario_1.json" ^
+  --char-gender "male" ^
+  --scenario 1 ^
+  --guidelines "short" ^
   --output-file "outputs\poc_tests\p4_s1.txt" ^
   --tts-config "tts_config_cosyvoice.json" ^
   --start-message "ALERT: LLM MUST BE ON: llama-3.2-3b-instruct WITH llama-3.2-1b-instruct AS SPECULATIVE DECODING. Start scenario? (press Enter to begin, Ctrl+C to exit) "
