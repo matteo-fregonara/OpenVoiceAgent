@@ -83,12 +83,21 @@ class Main:
             prompt_json = json.load(f)
 
             self.chat_params["user"] = prompt_json["user"]
-            self.chat_params["char_description"] = prompt_json["char_description"]
 
             if config.char_gender == "female":
                 self.chat_params["char"] = prompt_json["char_female"]
+                self.chat_params["char_description"] = prompt_json["char_description_female"]
+                if config.guidelines == "long":
+                    self.chat_params["system_prompt"] = prompt_json["system_prompt_long_female"]
+                else:
+                    self.chat_params["system_prompt"] = prompt_json["system_prompt_short_female"]
             else:
                 self.chat_params["char"] = prompt_json["char_male"]
+                self.chat_params["char_description"] = prompt_json["char_description_male"]
+                if config.guidelines == "long":
+                    self.chat_params["system_prompt"] = prompt_json["system_prompt_long_male"]
+                else:
+                    self.chat_params["system_prompt"] = prompt_json["system_prompt_short_male"]
 
             match config.scenario:
                 case "1":
@@ -97,11 +106,6 @@ class Main:
                     self.chat_params["scenario"] = prompt_json["scenario2"]
                 case "3":
                     self.chat_params["scenario"] = prompt_json["scenario3"]
-
-            if config.guidelines == "long":
-                self.chat_params["system_prompt"] = prompt_json["system_prompt_long"]
-            else:
-                self.chat_params["system_prompt"] = prompt_json["system_prompt_short"]
 
         print("Loading STT")
         self.recorder = AudioToTextRecorder(
