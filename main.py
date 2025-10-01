@@ -75,11 +75,15 @@ class Main:
         self.config = config
         self.setup_logging()
         self.valid_emotions = self.get_valid_emotions()
+        self.chat_params = dict()
 
         # Load chat parameters
         prompt_file_path = 'prompts/default.json'
         with open(prompt_file_path, 'r') as f:
             prompt_json = json.load(f)
+
+            self.chat_params["user"] = prompt_json["user"]
+            self.chat_params["char_description"] = prompt_json["char_description"]
 
             if config.char_gender == "female":
                 self.chat_params["char"] = prompt_json["char_female"]
