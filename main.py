@@ -168,7 +168,6 @@ class Main:
         print(f"Assistant Name: {char_name}")
         print(f"Description: {char_desc}")
         print(f"\nUser Name: {user_name}")
-        print(f"Description: {user_desc}")
         print(f"\nScenario: {scenario}")
         print()  # Extra line for spacing
 
