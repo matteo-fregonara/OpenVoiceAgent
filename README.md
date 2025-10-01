@@ -76,10 +76,9 @@ conda install -c conda-forge ffmpeg=4.3.1
         > python main.py --char-gender female --scenario 1 --guidelines long --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
         ```
 
-        - `char-gender`: choose which gender you'd like to talk to
-        - `scenario`: choose which scenario you'd like to practice on
-        
-        - `guidelines`: choose if you would like the LLM to be guided by more guidelines (long) or less (short)
+        - `char-gender`: choose which gender you'd like to talk to. Options: female, male
+        - `scenario`: choose which scenario you'd like to practice on. Options: 1, 2, 3
+        - `guidelines`: choose if you would like the LLM to be guided by more guidelines (long) or less (short). Options: long, short
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
         - `tts-config`: points to the json file that contains the parameters for the tts engine
 
