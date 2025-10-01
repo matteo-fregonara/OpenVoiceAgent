@@ -1,5 +1,6 @@
 import json
 import logging
+import string
 import threading
 import queue
 import time
@@ -11,11 +12,14 @@ from lib.bufferstream import BufferStream
 from realtimetts_clone.engines.cosyvoice_engine import CosyvoiceEngine
 
 class TTSHandler:
-    def __init__(self, config_file='tts_config.json'):
+    def __init__(self, config_file='tts_config.json', gender: string = "female"):
         with open(config_file, 'r') as f:
             self.config = json.load(f)
         
-        self.references_folder = self.config['references_folder']
+        if gender == "female":
+            self.references_folder = self.config['references_folder_female']
+        else:
+            self.references_folder = self.config['references_folder_male']
         self.dbg_log = self.config['dbg_log']
         self.stop_event = threading.Event()
         self.sentence_queue = ThreadSafeSentenceQueue()

@@ -1,3 +1,4 @@
+import string
 import os, sys
 conda = os.environ.get("CONDA_PREFIX") or sys.prefix
 extra = [
@@ -54,7 +55,7 @@ class Config:
     use_tts: bool = True
     dbg_log: bool = False
     log_level_nondebug = logging.WARNING
-    references_folder: str = "reference_women"
+    references_folder: str = "wavs/reference_woman"
     stt_model: str = "small.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.2
@@ -74,7 +75,7 @@ class Main:
     def __init__(self, config: Config):
         self.config = config
         self.setup_logging()
-        self.valid_emotions = self.get_valid_emotions()
+        self.valid_emotions = self.get_valid_emotions(config.char_gender)
         self.chat_params = dict()
 
         # Load chat parameters
@@ -126,7 +127,7 @@ class Main:
         else:
             print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
             from tts_handler_cosyvoice import TTSHandler
-        self.tts_handler = TTSHandler(config.tts_config_file) if config.use_tts else None        
+        self.tts_handler = TTSHandler(config.tts_config_file, config.char_gender) if config.use_tts else None        
         
         # Token processing state
         self.plain_text = ""
@@ -156,10 +157,13 @@ class Main:
         level = logging.DEBUG if self.config.dbg_log else self.config.log_level_nondebug
         logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    def get_valid_emotions(self) -> List[str]:
+    def get_valid_emotions(self, gender: string = "female") -> List[str]:
         with open(self.config.tts_config_file, 'r') as f:
             tts_config = json.load(f)
-        references_folder = tts_config['references_folder']
+        if gender == "female":
+            references_folder = tts_config['references_folder_female']
+        else:
+            references_folder = tts_config['references_folder_male']
         return [os.path.splitext(f)[0] for f in os.listdir(references_folder) if f.endswith('.wav')]        
 
     def print_available_emotions(self):
