@@ -30,6 +30,7 @@ import pyaudio
 import queue
 import time
 import wave
+import re
 
 class TextToAudioStream:
     def __init__(
@@ -588,8 +589,7 @@ class TextToAudioStream:
                 for sentence in chunk_generator:
                     if abort_event.is_set():
                         break
-                    sentence = sentence.strip()
-                    if sentence:
+                    if sentence.strip():
                         sentence_queue.put(sentence)
                     else:
                         continue  # Skip empty sentences
@@ -852,36 +852,76 @@ class TextToAudioStream:
         Returns:
             Iterator of synthesis chunks.
         """
+        def is_punct_run(s: str) -> bool:
+            # Includes unicode ellipsis \u2026
+            return re.fullmatch(r"[\.\?\!;:,\u2026]+", s.strip()) is not None
 
-        # Initializes an empty string to accumulate chunks of synthesis
+
+        def is_closing_trailer(s: str) -> bool:
+            # Closing quotes/brackets that often follow punctuation
+            return re.fullmatch(r"[\"'”’\)\]\}]+", s.strip()) is not None
+
+        def endswith_punct(s: str) -> bool:
+            return re.search(r"[\.\?\!;:,\u2026]$", s.strip()) is not None
+
+        def starts_with_punct_run(s: str) -> bool:
+            return re.match(r"^\s*[\.\?\!;:,\u2026]+", s) is not None
+
         synthesis_chunk = ""
+        it = iter(generator)
+        lookahead = None
 
-        # Iterates over each chunk from the provided generator
-        for chunk in generator:
-            # Fetch the total seconds of buffered audio
+        while True:
+            chunk = lookahead if lookahead is not None else next(it, None)
+            if chunk is None:
+                break
+            lookahead = None
+
+            # Accumulate text or punctuation (and attach closing quotes/brackets after punctuation)
+            if is_punct_run(chunk) and synthesis_chunk:
+                synthesis_chunk = synthesis_chunk.rstrip() + chunk + " "
+            elif is_closing_trailer(chunk) and synthesis_chunk and endswith_punct(synthesis_chunk):
+                synthesis_chunk = synthesis_chunk.rstrip() + chunk + " "
+            else:
+                if synthesis_chunk and not synthesis_chunk.endswith(" ") and not chunk.startswith(" "):
+                    synthesis_chunk += " "
+                synthesis_chunk += chunk
+
+            # Determine buffered seconds
             if self.player:
                 buffered_audio_seconds = self.player.get_buffered_seconds()
             else:
                 buffered_audio_seconds = 0
 
-            # Append the current chunk (and a space) to the accumulated synthesis_chunk
-            synthesis_chunk += chunk + " "
-
-            # Check if the buffered audio is below the specified threshold
+            # Yield policy (immediate when threshold <= 0)
             if (
                 buffered_audio_seconds < buffer_threshold_seconds
                 or buffer_threshold_seconds <= 0
             ):
-                # If the log_synthesis_chunks flag is True, log the current synthesis_chunk
-                if log_synthesis_chunks:
-                    logging.info(
-                        f'-- ["{synthesis_chunk}"], buffered {buffered_audio_seconds:1f}s'
-                    )
-
-                # Yield the current synthesis_chunk and reset it for the next set of accumulations
-                yield synthesis_chunk
-                synthesis_chunk = ""
-
+                # Peek ahead one chunk; if it's punctuation-only, starts with a punctuation run,
+                # or is a closing trailer right after punctuation, merge and continue
+                nxt = next(it, None)
+                if nxt is not None and (
+                    is_punct_run(nxt)
+                    or starts_with_punct_run(nxt)
+                    or (is_closing_trailer(nxt) and endswith_punct(synthesis_chunk))
+                ):
+                    synthesis_chunk = synthesis_chunk.rstrip() + nxt + " "
+                    # Do not yield yet; continue accumulating
+                    continue
+                else:
+                    if nxt is not None:
+                        lookahead = nxt
+                    if log_synthesis_chunks:
+                        logging.info(
+                            f'-- ["{synthesis_chunk}"], buffered {buffered_audio_seconds:1f}s'
+                        )
+                    # Avoid yielding punctuation-only as a standalone chunk
+                    if is_punct_run(synthesis_chunk):
+                        synthesis_chunk = ""
+                        continue
+                    yield synthesis_chunk.rstrip()
+                    synthesis_chunk = ""
             else:
                 logging.info(
                     f"summing up chunks because buffer {buffered_audio_seconds:.1f} > threshold ({buffer_threshold_seconds:.1f}s)"
@@ -890,10 +930,10 @@ class TextToAudioStream:
         # After iterating over all chunks, check if there's any remaining data in synthesis_chunk
         if synthesis_chunk:
             # If the log_synthesis_chunks flag is True, log the remaining synthesis_chunk
-            if log_synthesis_chunks:
+            if log_synthesis_chunks and not is_punct_run(synthesis_chunk):
                 logging.info(
                     f'-- ["{synthesis_chunk}"], buffered {buffered_audio_seconds:.1f}s'
                 )
 
-            # Yield the remaining synthesis_chunk
-            yield synthesis_chunk
+            # Yield the remaining synthesis_chunk, stripping only trailing spaces
+            yield synthesis_chunk.rstrip()
