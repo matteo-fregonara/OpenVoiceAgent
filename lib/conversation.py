@@ -21,7 +21,8 @@ class Conversation:
         for role, message in reversed(self.history):
             if role != "user" or len(accumulated_user_messages) >= self._user_msg_check_max: # if a non-user message appears or we've accumulated 4 move on
                 break
-            accumulated_user_messages.append(message) # accumulate the text of the last user messages
+            if message != "(says nothing)": # do not add the says nothing message
+                accumulated_user_messages.append(message) # accumulate the text of the last user messages
 
         if len(accumulated_user_messages) >= 2: # only replace the last messages if there were more than one user message
             self.history = self.history[:-len(accumulated_user_messages)] + [("user", ' '.join(reversed(accumulated_user_messages)))]
