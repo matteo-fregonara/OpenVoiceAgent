@@ -61,7 +61,7 @@ class Config:
     stt_silence_duration: float = 0.2
     tts_config_file: str = "tts_config_cosyvoice.json" # default; can be overridden via --tts-config
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
-    silence_timeout: float = 5.0
+    silence_timeout: float = 8.0
     silence_token: str = "(says nothing)"
     start_message: str = "Start scenario?  (press Enter to begin, Ctrl+C to exit) "
     char_gender: str = "female"

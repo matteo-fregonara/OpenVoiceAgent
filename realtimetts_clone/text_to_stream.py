@@ -920,7 +920,7 @@ class TextToAudioStream:
                     if is_punct_run(synthesis_chunk):
                         synthesis_chunk = ""
                         continue
-                    yield synthesis_chunk.rstrip()
+                    yield synthesis_chunk.rstrip().lower()
                     synthesis_chunk = ""
             else:
                 logging.info(
