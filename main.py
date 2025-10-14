@@ -9,6 +9,39 @@ extra = [
 ]
 os.environ["PATH"] = os.pathsep.join(extra + [os.environ.get("PATH","")])
 
+# Override modelscope's snapshot_download to load the local wetext model from third_party\pengzhendong\wetext 
+# instead of fetching it online
+
+import importlib
+import modelscope
+import modelscope.hub
+
+os.environ["MODELSCOPE_OFFLINE"] = "1"
+os.environ["MODELSCOPE_HOME"] = os.path.join(os.getcwd(), "third_party")
+
+def offline_snapshot_download(model_id, *args, **kwargs):
+    base = os.environ["MODELSCOPE_HOME"]
+    local_path = os.path.join(base, model_id.replace("/", os.sep))
+    if not os.path.exists(local_path):
+        raise RuntimeError(f"[OFFLINE] Model not found locally: {local_path}")
+    print(f"[OFFLINE] Using local model: {local_path}")
+    return local_path
+
+modules_to_patch = [
+    "modelscope",
+    "modelscope.hub",
+    "modelscope.hub.snapshot_download",
+    "modelscope.utils.hub",
+]
+
+for mod in modules_to_patch:
+    try:
+        module = importlib.import_module(mod)
+        setattr(module, "snapshot_download", offline_snapshot_download)
+    except (ImportError, AttributeError):
+        pass
+
+
 # prevent flash attention warnings
 import warnings
 
@@ -46,6 +79,8 @@ import threading
 import queue
 import signal # for forced ctrl c shutdown
 # ========================================================
+
+
 
 @dataclass
 class Config:
