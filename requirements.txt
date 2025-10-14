@@ -1,2 +1,3 @@
 RealtimeTTS[coqui]==0.4.5
 RealtimeSTT==0.2.1
+addict==2.4.0
