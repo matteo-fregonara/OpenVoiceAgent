@@ -11,7 +11,6 @@ os.environ["PATH"] = os.pathsep.join(extra + [os.environ.get("PATH","")])
 
 # Override modelscope's snapshot_download to load the local wetext model from third_party\pengzhendong\wetext 
 # instead of fetching it online
-
 import importlib
 import modelscope
 import modelscope.hub
@@ -40,7 +39,6 @@ for mod in modules_to_patch:
         setattr(module, "snapshot_download", offline_snapshot_download)
     except (ImportError, AttributeError):
         pass
-
 
 # prevent flash attention warnings
 import warnings
@@ -79,8 +77,6 @@ import threading
 import queue
 import signal # for forced ctrl c shutdown
 # ========================================================
-
-
 
 @dataclass
 class Config:
