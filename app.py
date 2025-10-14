@@ -2,6 +2,8 @@ from flask import Flask, render_template, jsonify
 import subprocess
 import threading
 import signal
+import os
+import sys
 
 app = Flask(__name__)
 process = None  # global process reference
@@ -25,14 +27,29 @@ def launch():
         '--tts-config', 'tts_config_cosyvoice.json'
     ]
 
-    process = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
-    )
+    if sys.platform == "win32":
+        # Windows: create a new process group so we can send CTRL_BREAK_EVENT
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        # POSIX: start in a new session (new process group)
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            preexec_fn=os.setsid
+        )
+
 
     # Background thread to continuously read output and save to file
     def log_reader():
@@ -62,8 +79,44 @@ def stop():
     if process is None or process.poll() is not None:
         return jsonify({"status": "no process running"})
 
-    process.send_signal(signal.SIGINT)
-    return jsonify({"status": "SIGINT sent"})
+    try:
+        if sys.platform == "win32":
+            # Windows: emulate Ctrl-C using CTRL_BREAK_EVENT to the process group
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            # POSIX: send SIGINT to the whole group (like Ctrl-C)
+            os.killpg(process.pid, signal.SIGINT)
+
+        # Optionally close stdin so the app can see EOF if it listens for it
+        try:
+            process.stdin.close()
+        except Exception:
+            pass
+
+        # Give it a moment to exit gracefully; then escalate if needed
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            # Try a softer terminate, then kill
+            if sys.platform == "win32":
+                process.terminate()
+            else:
+                os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                if sys.platform == "win32":
+                    process.kill()
+                else:
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+
+        status = "stopped"
+    except Exception as e:
+        status = f"error: {e}"
+
+    process = None
+    return jsonify({"status": status})
 
 @app.route('/logs', methods=['GET'])
 def get_logs():
