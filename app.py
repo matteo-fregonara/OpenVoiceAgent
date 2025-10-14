@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify
 import subprocess
 import threading
+import signal
 
 app = Flask(__name__)
 process = None  # global process reference
@@ -54,6 +55,20 @@ def run_step():
     process.stdin.write("\n")
     process.stdin.flush()
     return jsonify({"status": "enter sent"})
+
+@app.route('/stop', methods=['POST'])
+def stop():
+    global process
+    if process is None or process.poll() is not None:
+        return jsonify({"status": "no process running"})
+
+    process.send_signal(signal.SIGINT)
+    try:
+        process.wait(timeout=3)  # wait up to 3 seconds
+    except subprocess.TimeoutExpired:
+        process.kill()  # force kill if still running
+
+    return jsonify({"status": "terminated"})
 
 @app.route('/logs', methods=['GET'])
 def get_logs():
