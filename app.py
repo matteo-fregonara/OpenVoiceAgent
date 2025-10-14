@@ -63,12 +63,7 @@ def stop():
         return jsonify({"status": "no process running"})
 
     process.send_signal(signal.SIGINT)
-    try:
-        process.wait(timeout=3)  # wait up to 3 seconds
-    except subprocess.TimeoutExpired:
-        process.kill()  # force kill if still running
-
-    return jsonify({"status": "terminated"})
+    return jsonify({"status": "SIGINT sent"})
 
 @app.route('/logs', methods=['GET'])
 def get_logs():
