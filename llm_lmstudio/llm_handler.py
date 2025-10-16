@@ -7,6 +7,15 @@ from typing import Callable, Dict, Any, List
 from lib.conversation import Conversation
 
 class LLMHandler:
+    """
+    Class that handles connections to the LLM through LMStudio.
+    
+    Internal States:
+    - completeion_params: json of parameters for the LLM
+    - max_tokens: max_tokens to be stored in the conversation history
+    - conversation: Conversation object that stores history
+    - log_stats: whether to log statistics of operation or not.
+    """
     def __init__(
             self,
             completion_params_file: str = "llm_lmstudio/completion_params.json",
@@ -21,23 +30,26 @@ class LLMHandler:
         # LMStudio typically runs on localhost:1234
         self.api_url = "http://localhost:1234/v1/chat/completions"
 
-        # ===== NEW: support streaming abort =====
+        # Variables that support streaming abort during user interruption
         self.session = requests.Session()
         self._active_response = None
         self._abort = threading.Event()
-        # =======================================
 
     def load_completion_params(self, file_path: str) -> Dict[str, Any]:
+        """Loads the parameter json file."""
         with open(file_path, 'r') as f:
             return json.load(f)
 
     def add_user_text(self, text: str):
+        """Adds user text to the conversation."""
         self.conversation.add_user_message(text)
 
     def add_assistant_text(self, text: str):
+        """Adds ai text to the conversation."""
         self.conversation.add_assistant_message(text)
 
     def create_messages(self, system_prompt: str) -> List[Dict[str, str]]:
+        """Creates the list of messages dictionary with the original system prompt."""
         messages = [{"role": "system", "content": system_prompt}]
         for role, message in self.conversation.get_history():
             messages.append({"role": role, "content": message})
@@ -47,6 +59,7 @@ class LLMHandler:
             self,
             system_prompt: str,
             on_token: Callable[[str], None] = None):
+        """Queries LMStudio LLM to get AI response."""
 
         messages = self.create_messages(system_prompt)
         
@@ -64,12 +77,9 @@ class LLMHandler:
         self._abort.clear()
 
         try:
-            #### NEW
             # NOTE: leave read timeout None for long streams. Connect timeout small.
             response = self.session.post(self.api_url, json=payload, stream=True, timeout=(3.05, None))
             self._active_response = response
-            # response = requests.post(self.api_url, json=payload, stream=True)
-            # response.raise_for_status()
 
             for line in response.iter_lines():
                 if self._abort.is_set():
@@ -98,7 +108,7 @@ class LLMHandler:
                 print(f"Full response: {full_response}")
 
         except RuntimeError as e:
-            # ===== NEW: let our barge-in cancellation bubble up =====
+            # Let our barge-in cancellation bubble up
             if "CancelledByBargeIn" in str(e):
                 raise
             else:
@@ -113,8 +123,8 @@ class LLMHandler:
                 print(f"A finally error occured: {e}")
             self._active_response = None
 
-    # ===== NEW: called by Main._cancel_ai_now() =====
     def abort(self):
+        """Aborts the currently active response during user interruption."""
         self._abort.set()
         try:
             if self._active_response is not None:
@@ -123,5 +133,6 @@ class LLMHandler:
             pass
 
     def write_payload(self, file_path: str = 'payload.txt', mode='w'):
+        """Write the message history and LLM payload to a txt file."""
         with open(file_path, mode) as f:
             f.write(self.payload)

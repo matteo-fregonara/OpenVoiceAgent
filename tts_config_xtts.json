@@ -1,8 +1,0 @@
-{
-    "engine": "xtts",
-    "use_local_model": true,
-    "specific_model": "XTTS_Lasinya",
-    "local_models_path": "models",
-    "references_folder": "reference_wavs",
-    "dbg_log": false
-}

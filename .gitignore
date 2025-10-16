@@ -4,11 +4,4 @@ __pycache__/*
 lib/__pycache__
 lib/__pycache__/*
 
-payload.txt
-
-realtimesst.log
-
-models/XTTS_Lasinya
-models/XTTS_Lasinya/*
-
 tts_config.json
