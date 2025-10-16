@@ -1,19 +1,93 @@
 <!doctype html>
 <html>
-  <head><title>Speech-to-Speech Control</title></head>
+  <head>
+    <title>Speech-to-Speech Control</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; }
+      .row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+      label { font-size: 0.9rem; }
+      select, button { padding: 0.4rem 0.6rem; font-size: 1rem; }
+      #logs { background:#111; color:#eee; padding:1rem; min-height:200px; white-space:pre-wrap; }
+    </style>
+  </head>
   <body>
     <h1>Speech-to-Speech Interface</h1>
 
-    <button id="launchBtn">Launch Model</button>
-    <button id="runBtn">Run (Send Enter)</button>
-    <button id="stopBtn">Stop Model</button>
+    <div class="row" style="margin-bottom: 1rem;">
+      <label for="scenarioSelect">Scenario:</label>
+      <select id="scenarioSelect" aria-label="Scenario"></select>
+
+      <label for="genderSelect">Character:</label>
+      <select id="genderSelect" aria-label="Character">
+        <!-- will be filled dynamically too, but kept here as fallback -->
+        <option value="female">female</option>
+        <option value="male">male</option>
+      </select>
+    </div>
+
+    <div class="row" style="margin-bottom: 1rem;">
+      <button id="launchBtn">Launch Model</button>
+      <button id="runBtn">Run (Send Enter)</button>
+      <button id="stopBtn">Stop Model</button>
+    </div>
+
+    <pre id="status"></pre>
     <pre id="logs"></pre>
 
     <script>
+      const scenarioSelect = document.getElementById('scenarioSelect');
+      const genderSelect = document.getElementById('genderSelect');
+      const statusEl = document.getElementById('status');
+
+      async function loadOptions() {
+        try {
+          const res = await fetch('/options');
+          const data = await res.json();
+
+          // Populate scenarios
+          scenarioSelect.innerHTML = '';
+          (data.scenarios || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;        // folder name (e.g., "scenario_1" or "test_example")
+            opt.textContent = s.label; // display label (e.g., "scenario 1" or "test example")
+            scenarioSelect.appendChild(opt);
+          });
+
+          // Populate genders
+          if (data.genders) {
+            genderSelect.innerHTML = '';
+            data.genders.forEach(g => {
+              const opt = document.createElement('option');
+              opt.value = g.id;        // "female" or "male"
+              opt.textContent = g.label;
+              genderSelect.appendChild(opt);
+            });
+          }
+        } catch (e) {
+          console.error(e);
+          statusEl.textContent = 'Failed to load options from server. Check /options route.';
+        }
+      }
+
       document.getElementById('launchBtn').addEventListener('click', async () => {
-        const res = await fetch('/launch', { method: 'POST' });
-        const data = await res.json();
-        alert(data.status);
+        statusEl.textContent = '';
+        const scenario = scenarioSelect.value;
+        const gender = genderSelect.value;
+
+        try {
+          const res = await fetch('/launch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scenario, gender })
+          });
+          const data = await res.json();
+          statusEl.textContent = JSON.stringify(data, null, 2);
+          alert(data.status || 'ok');
+        } catch (e) {
+          console.error(e);
+          statusEl.textContent = 'Failed to launch. See console.';
+          alert('Failed to launch');
+        }
       });
 
       document.getElementById('runBtn').addEventListener('click', async () => {
@@ -30,10 +104,17 @@
 
       // Poll logs every 2 seconds
       setInterval(async () => {
-        const res = await fetch('/logs');
-        const data = await res.json();
-        document.getElementById('logs').textContent = data.log;
+        try {
+          const res = await fetch('/logs');
+          const data = await res.json();
+          document.getElementById('logs').textContent = data.log || '';
+        } catch (e) {
+          // ignore transient errors
+        }
       }, 2000);
+
+      // Load options on first paint
+      loadOptions();
     </script>
   </body>
 </html>
