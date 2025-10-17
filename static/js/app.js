@@ -11,6 +11,7 @@ let isModelLoaded    = false;
 let isCallActive     = false;
 let callTimer        = null;
 let callSeconds      = 0;
+let loadingPollTimer = null;
 
 function setGender(g) {
   selectedGender = g;
@@ -28,11 +29,19 @@ setInterval(updatePhoneTime, 1000);
 updatePhoneTime();
 
 // UI states for phone
-function setPhoneState(state, scenarioLabel=''){
+function setPhoneState(state, scenarioLabel='', genderLabel=''){
   phoneContent.innerHTML = '';
-  if(state === 'not-ready'){
+  if(state === 'not-loaded'){
     phoneContent.innerHTML = `
-      <div class="text-2xl font-medium text-slate-900 leading-tight">Pick a scenario to begin</div>
+      <div class="text-2xl font-medium text-slate-900 leading-tight">Caller not loaded yet</div>
+      <div class="text-sm text-slate-500 mt-2">Load the caller on the left side</div>
+    `;
+    callBtn.disabled = true;
+    callBtn.className = "w-16 h-16 rounded-full bg-gray-300 cursor-not-allowed flex items-center justify-center shadow-lg";
+  } else if(state === 'connecting'){
+    phoneContent.innerHTML = `
+      <div class="text-2xl font-medium text-slate-900 leading-tight">Connecting</div>
+      <div class="text-sm text-slate-500 mt-2">Please wait...</div>
     `;
     callBtn.disabled = true;
     callBtn.className = "w-16 h-16 rounded-full bg-gray-300 cursor-not-allowed flex items-center justify-center shadow-lg";
@@ -43,7 +52,8 @@ function setPhoneState(state, scenarioLabel=''){
     `;
     callBtn.disabled = false;
     callBtn.className = "w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 hover:scale-105 flex items-center justify-center shadow-lg transition-all";
-  } else if(state === 'in-call'){
+  } else if(state === 'connected'){
+    const subtitle = (scenarioLabel && genderLabel) ? `${scenarioLabel} - ${genderLabel}` : (scenarioLabel || '');
     phoneContent.innerHTML = `
       <div class="text-center px-6 flex flex-col items-center">
         <div class="relative mb-5">
@@ -55,7 +65,7 @@ function setPhoneState(state, scenarioLabel=''){
           </div>
         </div>
         <div class="text-xl font-semibold text-slate-900 mb-1.5">Call in progress</div>
-        <div class="text-base text-slate-500 mb-3">${scenarioLabel || ''}</div>
+        <div class="text-base text-slate-500 mb-3">${subtitle}</div>
         <div id="callTimer" class="text-2xl font-light text-branddark">00:00</div>
       </div>
     `;
@@ -82,12 +92,41 @@ async function loadOptions() {
       scenarioSelect.appendChild(opt);
     });
 
-    // initial phone message
-    setPhoneState(scenarioSelect.value ? 'ready' : 'not-ready');
+    // initial phone message - always start with not-loaded
+    setPhoneState('not-loaded');
   } catch (e) {
     console.error(e);
     statusEl.textContent = 'Failed to load options from server. Check /options route.';
-    setPhoneState('not-ready');
+    setPhoneState('not-loaded');
+  }
+}
+
+// Poll logs to check if model is ready
+async function pollForModelReady() {
+  try {
+    const res = await fetch('/logs');
+    const data = await res.json();
+    const logText = data.log || '';
+
+    if (logText.includes('Models are loaded and ready.')) {
+      // Model is ready!
+      if (loadingPollTimer) {
+        clearInterval(loadingPollTimer);
+        loadingPollTimer = null;
+      }
+      isModelLoaded = true;
+      setPhoneState('ready');
+      const btn = document.getElementById('launchBtn');
+      if (btn) {
+        btn.textContent = 'Load caller';
+        btn.disabled = false;
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('Error polling logs:', e);
+    return false;
   }
 }
 
@@ -101,11 +140,11 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
   }
 
   const btn = event?.currentTarget || document.getElementById('launchBtn');
-  const prevText = btn ? btn.textContent : 'Load caller';
 
   try {
     // show feedback
     if(btn){ btn.textContent = 'Loading caller...'; btn.disabled = true; }
+    setPhoneState('connecting');
 
     const res = await fetch('/launch', {
       method: 'POST',
@@ -115,21 +154,31 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     const data = await res.json();
     statusEl.textContent = JSON.stringify(data, null, 2);
 
-    // Treat both fresh launch and already-running as success
-    isModelLoaded = (data.status === 'launched' || data.status === 'already running');
-    if(isModelLoaded){
-      setPhoneState('ready');
-      alert('Caller loaded');
+    // Check if launch was successful
+    if (data.status === 'launched' || data.status === 'already running') {
+      // Start polling for "Models are loaded and ready."
+      if (loadingPollTimer) {
+        clearInterval(loadingPollTimer);
+      }
+
+      // Check immediately first
+      const ready = await pollForModelReady();
+      if (!ready) {
+        // If not ready yet, poll every 500ms
+        loadingPollTimer = setInterval(pollForModelReady, 500);
+      }
     } else {
-      alert(data.status || 'Launch error');
+      // Launch failed
+      alert(data.message || data.status || 'Launch error');
+      setPhoneState('not-loaded');
+      if(btn){ btn.textContent = 'Load caller'; btn.disabled = false; }
     }
   } catch (e) {
     console.error(e);
     statusEl.textContent = 'Failed to launch. See console.';
     alert('Failed to launch');
-    setPhoneState('not-ready');
-  } finally {
-    if(btn){ btn.textContent = prevText; btn.disabled = false; }
+    setPhoneState('not-loaded');
+    if(btn){ btn.textContent = 'Load caller'; btn.disabled = false; }
   }
 });
 
@@ -142,11 +191,12 @@ callBtn.addEventListener('click', async () => {
     // START call -> /run
     try {
       const res = await fetch('/run', { method: 'POST' });
-      const data = await res.json();
+      await res.json();
       // treat any ok status as success to keep behavior same as your previous UI
       isCallActive = true;
       callSeconds = 0;
-      setPhoneState('in-call', scenarioSelect.options[scenarioSelect.selectedIndex]?.textContent || '');
+      const scenarioLabel = scenarioSelect.options[scenarioSelect.selectedIndex]?.textContent || '';
+      setPhoneState('connected', scenarioLabel, selectedGender);
       callTimer = setInterval(() => {
         callSeconds += 1;
         const m = String(Math.floor(callSeconds/60)).padStart(2,'0');
@@ -163,31 +213,26 @@ callBtn.addEventListener('click', async () => {
   }
 });
 
-// Run/Stop buttons (keep your original controls)
-document.getElementById('runBtn').addEventListener('click', async () => {
-  const res = await fetch('/run', { method: 'POST' });
-  const data = await res.json();
-  alert(data.status);
-});
-
-document.getElementById('stopBtn').addEventListener('click', async () => {
-  await endCall();
-});
-
 async function endCall(){
   try {
     const res = await fetch('/stop', { method: 'POST' });
-    const data = await res.json();
-    alert(data.status);
+    await res.json();
   } catch {}
   isCallActive = false;
-  isModelLoaded = false; // mimic TSX behavior (unload after end)
+  isModelLoaded = false; // Reset after call ends
   if(callTimer){ clearInterval(callTimer); callTimer = null; }
-  setPhoneState(scenarioSelect.value ? 'ready' : 'not-ready');
+  if(loadingPollTimer){ clearInterval(loadingPollTimer); loadingPollTimer = null; }
+  setPhoneState('not-loaded');
+
+  // Re-enable the load caller button
+  const btn = document.getElementById('launchBtn');
+  if (btn) {
+    btn.textContent = 'Load caller';
+    btn.disabled = false;
+  }
 }
 
-// Logs
-document.getElementById('refreshLogsBtn').addEventListener('click', refreshLogs);
+// Logs - auto-refresh
 async function refreshLogs(){
   try {
     const res = await fetch('/logs');
