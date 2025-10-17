@@ -80,13 +80,14 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
     const subtitle = (scenarioLabel && genderLabel) ? `${scenarioLabel} - ${genderLabel}` : (scenarioLabel || '');
     phoneContent.innerHTML = `
       <div class="text-center px-6 flex flex-col items-center">
-        <div class="relative mb-5">
-          <div class="absolute inset-0 bg-brandblue rounded-full pulse-ring opacity-30"></div>
-          <div class="w-20 h-20 bg-gradient-to-br from-brandblue to-branddark rounded-full flex items-center justify-center relative z-10">
-            <svg class="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.56 0 1 .44 1 1V21c0 .56-.44 1-1 1C10.3 22 2 13.7 2 3c0-.56.44-1 1-1h3.5c.56 0 1 .44 1 1 0 1.24.2 2.45.57 3.57.11.35.03.74-.24 1.02l-2.2 2.2z"/>
-            </svg>
-          </div>
+        <div class="mb-6 flex items-end justify-center gap-1 h-12">
+          <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave1 1.2s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave2 1.0s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave3 1.4s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-[#02b1ea] rounded-full" style="animation: audioWave4 1.1s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave3 1.3s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-[#02b1ea] rounded-full" style="animation: audioWave2 1.15s ease-in-out infinite;"></div>
+          <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave1 1.25s ease-in-out infinite;"></div>
         </div>
         <div class="text-xl font-semibold text-slate-900 mb-1.5">Call in progress</div>
         <div class="text-base text-slate-500 mb-3">${subtitle}</div>
