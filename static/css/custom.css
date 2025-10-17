@@ -12,29 +12,53 @@
 }
 .pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
 
-/* audio wave animations for active calls */
+/* audio wave animations for active calls - symmetric from center */
 @keyframes audioWave1 {
-  0%, 100% { height: 20%; }
-  50% { height: 100%; }
+  0%, 100% {
+    height: 25%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 100%;
+    transform: scaleY(1);
+  }
 }
 
 @keyframes audioWave2 {
-  0%, 100% { height: 40%; }
-  50% { height: 80%; }
+  0%, 100% {
+    height: 40%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 85%;
+    transform: scaleY(1);
+  }
 }
 
 @keyframes audioWave3 {
-  0%, 100% { height: 60%; }
-  50% { height: 95%; }
+  0%, 100% {
+    height: 60%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 100%;
+    transform: scaleY(1);
+  }
 }
 
 @keyframes audioWave4 {
-  0%, 100% { height: 30%; }
-  50% { height: 70%; }
+  0%, 100% {
+    height: 35%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 75%;
+    transform: scaleY(1);
+  }
 }
 
 .audio-bar-call {
-  min-height: 20%;
+  min-height: 25%;
 }
 
 /* active state for gender segmented buttons */

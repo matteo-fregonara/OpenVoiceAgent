@@ -80,7 +80,7 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
     const subtitle = (scenarioLabel && genderLabel) ? `${scenarioLabel} - ${genderLabel}` : (scenarioLabel || '');
     phoneContent.innerHTML = `
       <div class="text-center px-6 flex flex-col items-center">
-        <div class="mb-6 flex items-end justify-center gap-1 h-12">
+        <div class="mb-6 flex items-center justify-center gap-1 h-12">
           <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave1 1.2s ease-in-out infinite;"></div>
           <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave2 1.0s ease-in-out infinite;"></div>
           <div class="audio-bar-call w-1.5 bg-brandblue rounded-full" style="animation: audioWave3 1.4s ease-in-out infinite;"></div>
