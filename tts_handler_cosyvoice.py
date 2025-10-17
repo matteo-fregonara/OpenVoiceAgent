@@ -12,6 +12,33 @@ from lib.bufferstream import BufferStream
 from realtimetts_clone.engines.cosyvoice_engine import CosyvoiceEngine
 
 class TTSHandler:
+    """
+    Class that handles TTS using Cosyvoice engine.
+    Internal flow:
+    - Text/emotion is enqueued in the ThreadSafeSentenceQueue (self.sentence_queue)
+    - Sentence worker thread reads sentences, chooses the cloning reference, and feeds text into TextToAudioStream
+    - TextToAudioStream (backed by CosyVoiceEngine) synthesizes audio and plays audio
+    Internal States:
+    - config: json containing configuration parameters.
+    - references_folder: folder that contains wav files for voice cloning.
+    - dbg_log: whether to log debugging statements.
+    - stop_event: whether to stop TTS during user interruption.
+    - sentence_queue: queue that contains text to be read.
+    - chunk_queue: queue that contains audio chunks to be played.
+    - chunk_lock: lock that controls access to chunk_queue.
+    - pyFormat: format of pyaudio stream.
+    - pyChannels: number of audio channels in pyaudio stream.
+    - pySampleRate: sample rate of pyaudio stream
+    - pyOutput_device_index: index of device to use to play audio.
+    - pyaudio_instance: pyaudio instance
+    - pystream: pystream instantiated from the pyaudio instance.
+    - tts_sentence_thread: sentence queuer thread
+    - tts_play_thread: sentence player thread
+    - external_interrupt_event: an external interrupt if it arrived
+    - _stream_needs_reset: whether the TextToAudioStream needs to be re-built after a user interrupt
+    - engine: the cosyvoice engine to synthesize audio with
+    - stream: TextToAudioStream which uses the engine to create audio
+    """
     def __init__(self, config_file='tts_config.json', gender: string = "female"):
         with open(config_file, 'r') as f:
             self.config = json.load(f)
@@ -31,27 +58,15 @@ class TTSHandler:
         self.pySampleRate = 24000
         self.pyOutput_device_index = None
         
-        # ===== NEW: hold handles to threads/streams for quick stop =====
+        # handles to threads/streams for quick stop
         self.pyaudio_instance = None
         self.pystream = None
         self.tts_sentence_thread = None
         self.tts_play_thread = None
         self.external_interrupt_event = None
         self._stream_needs_reset = False # Set to true when TextToAudioStream needs re-build after barge-in event
-        # ===============================================================
 
         print("Loading TTS")
-        # fix this later
-        # if self.config['use_local_model']:
-        #     print(f"Trying to create engine: {self.config['specific_model']} {self.config['local_models_path']}")
-        #     self.engine = CoquiEngine(
-        #         specific_model=self.config['specific_model'],
-        #         local_models_path=self.config['local_models_path']
-        #     )
-        # else:
-        #     self.engine = CoquiEngine()
-
-
         self.engine = CosyvoiceEngine(
             model_path=self.config['cosyvoice_model_path'],
             prompt_speech=self.config['cosyvoice_prompt_speech'],
@@ -63,21 +78,16 @@ class TTSHandler:
         if self.dbg_log:
             print("Test Play TTS")
 
-        # self.stream.feed("hi!")  # only small warmup
-        # self.stream.play(log_synthesized_text=True, muted=True)
-
-        # self.engine.synthesize("Hello world")
-
     def initialize_pyaudio(self):
+        """TTS initialized during each ai turn."""
         self.stop_event = threading.Event()
         self.sentence_queue = ThreadSafeSentenceQueue()
         self.chunk_queue = queue.Queue()
 
-        # NEW: rebuild the stream after an interrupt (or if it's None)
+        # Rebuild the stream after an interrupt (or if it's None)
         if getattr(self, "_stream_needs_reset", False) or self.stream is None:
             try:
                 # If the old object had internal threads, just drop it on the floor.
-                # (TextToAudioStream usually doesn't need an explicit close)
                 pass
             finally:
                 self.stream = TextToAudioStream(self.engine, muted=True)
@@ -97,8 +107,9 @@ class TTSHandler:
         self.external_interrupt_event = event
 
     def tts_play_worker_thread(self):
+        """The worker thread that processes queued text for synthesis."""
         while not self.stop_event.is_set():
-            # >>> NEW: abort if external interrupt is set
+            # abort if external interrupt is set
             if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
                 self.stop_now()
                 break
@@ -107,18 +118,19 @@ class TTSHandler:
                 continue
             with self.chunk_lock:
                 chunk = self.chunk_queue.get()
-            # ===== GUARD: if we were stopped after get(), break early =====
+            # guard: if we were stopped after get(), break early
             if self.stop_event.is_set():
                 break
-            # >>> NEW: one more guard just before write
+            # one more guard just before write
             if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
                 self.stop_now()
                 break
-            # =============================================================
             self.pystream.write(chunk)
 
     def start_tts(self):
+        """The function that actually synthesizes the audio in cosyvoice."""
         def on_audio_chunk(chunk):
+            """Function used as each audio chunk is synthesized, adding to audio queue."""
             with self.chunk_lock:
                 self.chunk_queue.put(chunk)
 
@@ -135,6 +147,7 @@ class TTSHandler:
         )
 
     def tts_play_sentence(self, sentence: Sentence):
+        """After a sentence has been worked, it gets fed to the TextToAudio stream which calls cosyvoice."""
         if sentence.get_finished():
             sentence_text = sentence.get_text()
             if not sentence_text or not sentence_text.strip(): # don't play an empty sentence
@@ -157,11 +170,10 @@ class TTSHandler:
                 logging.debug(f"EMOTION: {sentence.emotion}")
 
             while not sentence.get_finished():
-                # ===== EARLY EXIT if stopped =====
+                # early exit if stopped
                 if self.stop_event.is_set() or (self.external_interrupt_event is not None and self.external_interrupt_event.is_set()):
                     self.stop_now()
                     return
-                # =================================
                 current_text = sentence.get_text()
                 if len(current_text) > len(last_text):
                     new_text = current_text[len(last_text):]
@@ -170,9 +182,9 @@ class TTSHandler:
                         self.stream.feed(buffer.gen())
                         self.start_tts()
                 last_text = current_text
-                time.sleep(0.01)
+                time.sleep(0.002)
 
-            # >>>>> flush any remaining tail that arrived right as the sentence finished
+            # flush any remaining tail that arrived right as the sentence finished
             final_text = sentence.get_text()
             if len(final_text) > len(last_text):
                 tail = final_text[len(last_text):]
@@ -181,34 +193,33 @@ class TTSHandler:
                 if not self.stream.is_playing():
                     self.stream.feed(buffer.gen())
                     self.start_tts()
-            # <<<<<
             
             if self.dbg_log:
                 logging.debug(" - feed finished")
             buffer.stop()
         while self.stream.is_playing():
-            # ===== EARLY EXIT during tail play if stopped =====
+            # early exit during tail play if stopped
             if self.stop_event.is_set() or (self.external_interrupt_event is not None and self.external_interrupt_event.is_set()):
                 self.stop_now()
                 break
-            # ==================================================
-            time.sleep(0.01)
+            time.sleep(0.002)
 
     def tts_sentence_worker_thread(self):
+        """Thread that parses incoming ai sentences, switching the voice clone example or enqueuing the text."""
         while not self.stop_event.is_set():
-            # >>> abort if external interrupt is set
+            # abort if external interrupt is set
             if self.external_interrupt_event is not None and self.external_interrupt_event.is_set():
                 self.stop_now()
                 break
             sentence = self.sentence_queue.get_sentence()
 
             if sentence:
+                # Get the path to the wav emotion file
                 emotion = sentence.emotion
                 if not emotion or emotion == "None":
                     emotion = "neutral"
                 emotion_file = emotion + ".wav"
                 path = os.path.join(self.references_folder, emotion_file)
-                # print(path)
 
                 # Get also the txt
                 emotion_file_txt = emotion + ".txt"
@@ -225,8 +236,6 @@ class TTSHandler:
                 except Exception as e:
                     logging.debug(f"An error occurred: {e}")
 
-                logging.debug(extracted_text)
-
                 # Check if path exists to the speicfic emotion
                 if os.path.exists(path):
                     if self.dbg_log:
@@ -237,7 +246,7 @@ class TTSHandler:
                         logging.debug(f"No emotion found for path: {path}")
                     path = os.path.join(self.references_folder, "neutral.wav")
 
-                    # Check also for the netural txt
+                    # Check also for the neutral txt
                     path_txt = os.path.join(self.references_folder, "neutral.txt")
                     extracted_text = None 
                     try:
@@ -268,9 +277,10 @@ class TTSHandler:
                     logging.debug(f" - id: {sentence.id}")
                 self.tts_play_sentence(sentence)
             
-            time.sleep(0.01)
+            time.sleep(0.002)
 
     def start_threads(self):
+        """Starts the worker & player threads during the ai turn."""
         self.tts_sentence_thread = threading.Thread(target=self.tts_sentence_worker_thread)
         self.tts_sentence_thread.daemon = True
         self.tts_sentence_thread.start()
@@ -280,21 +290,27 @@ class TTSHandler:
         self.tts_play_thread.start()
 
     def add_text(self, text):
+        """Adds ai turn text."""
         self.sentence_queue.add_text(text)
 
     def add_emotion(self, emotion):
+        """Adds ai turn emotion."""
         self.sentence_queue.add_emotion(emotion)
 
     def finish_current_sentence(self):
+        """Finishes the current sentence in the sentence queue."""
         self.sentence_queue.finish_current_sentence()
 
     def is_empty(self):
+        """Checks if sentence queue is empty."""
         return self.sentence_queue.is_empty()
 
     def is_playing(self):
+        """Checks if TextToAudio stream is playing"""
         return self.stream.is_playing()
     
     def shutdown_pyaudio(self):
+        """Shuts down pyaudio instances at end of ai turn."""
         if self.pystream is not None:
             try:
                 self.pystream.stop_stream()
@@ -310,6 +326,7 @@ class TTSHandler:
         self.pyaudio_instance = None
 
     def shutdown(self):
+        """Shuts down worker and player threads."""
         self.stop_event.set()
         print("Waiting for sentence thread finished")
         if self.tts_sentence_thread is not None:
@@ -319,10 +336,9 @@ class TTSHandler:
             self.tts_play_thread.join()
         self.engine.shutdown()
 
-    # ===== immediate stop used for barge-in =====
     def stop_now(self):
         """
-        Panic stop:
+        Panic stop for barge in event:
         - prevent more writes
         - stop the pyaudio stream immediately
         - clear all pending audio/sentences so playback truly halts
@@ -347,11 +363,11 @@ class TTSHandler:
         
         # Flush any pending sentences (prevents tail playback resuming)
         try:
-            # ThreadSafeSentenceQueue from your lib likely has an internal Queue;
-            # use its public API to drop current sentence and clear staged text.
+            # ThreadSafeSentenceQueue has an internal Queue;
+            # drop current sentence and clear staged text.
             # Here we do the safest thing: mark the current sentence finished and empty future ones.
             self.sentence_queue.finish_current_sentence()
-            # If the implementation exposes a .queue, clear it defensively:
+            # If the implementation exposes a .queue, clear it
             if hasattr(self.sentence_queue, "queue"):
                 with self.sentence_queue.mutex:
                     self.sentence_queue.queue.clear()

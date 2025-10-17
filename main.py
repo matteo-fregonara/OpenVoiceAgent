@@ -71,22 +71,30 @@ from lib.bargecontroller import BargeInController
 from lib.sttworker import STTWorker
 from lib.micenergywatcher import MicEnergyWatcher
 
-# Interruptions
-# ===== NEW: imports for barge-in controller/workers =====
+# Imports for barge-in controller/workers
 import threading
 import queue
 import signal # for forced ctrl c shutdown
-# ========================================================
 
 @dataclass
 class Config:
-    llm_provider: str = "lmstudio"  # "llamacpp" or "ollama" or "openai" or "anthropic" or "lmstudio"
-    print_emotions: bool = True
-    print_llm_text: bool = True
-    use_tts: bool = True
-    dbg_log: bool = False
-    log_level_nondebug = logging.WARNING
-    references_folder: str = "wavs/reference_woman"
+    """
+    Config for OpenVoiceAgent
+    
+    Internal States:
+    - stt_model: faster whisper model to use (default: small.en)
+    - stt_language: language for faster whisper model
+    - stt_silence_duration: how long to wait after user stops speaking to start processing
+    - tts_config_file: path to json file for tts config; can be overriden via --tts-config
+    - output_file: file to store output transcripts; can be overriden via --output-file
+    - silence_timeout: how long to wait for user to speak before returning silence token
+    - silence_token: silence token to release after silence_timeout seconds
+    - start_message: start message to print before starting conversation
+    - print_emotions: whether to print the emotions during log outputs
+    - print_llm_text: whether to print llm text during processing
+    - dgb_log: whether to log debugging statements or not
+    - log_level_nondebug: if dbg_log is false what log level should be used
+    """
     stt_model: str = "small.en"
     stt_language: str = "en"
     stt_silence_duration: float = 0.2
@@ -98,12 +106,18 @@ class Config:
     char_gender: str = "female"
     scenario: str = "1"
     guidelines: str = "long"
+    print_emotions: bool = True
+    print_llm_text: bool = True
+    dbg_log: bool = False
+    log_level_nondebug = logging.WARNING
 
 
 def color_text(text, color_code):
+    """Function used to color cmd line text."""
     return f"\033[{color_code}m{text}\033[0m"
 
 class Main:
+    """Main function for OpenVoiceAgent"""
     def __init__(self, config: Config):
         self.config = config
         self.setup_logging()
@@ -154,12 +168,10 @@ class Main:
             tts_config = json.load(f)
         if tts_config['engine'] == "cosyvoice":
             from tts_handler_cosyvoice import TTSHandler
-        elif tts_config['engine'] == 'xtts':
-            from tts_handler_xtts import TTSHandler
         else:
             print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
             from tts_handler_cosyvoice import TTSHandler
-        self.tts_handler = TTSHandler(config.tts_config_file, config.char_gender) if config.use_tts else None        
+        self.tts_handler = TTSHandler(config.tts_config_file, config.char_gender)      
         
         # Token processing state
         self.plain_text = ""
@@ -169,27 +181,28 @@ class Main:
         self.last_char = ""
         self.assistant_text = ""  # New variable to store complete assistant response
 
-        # ===== barge-in controller and workers =====
+        # barge-in controller and workers
         self.ctrl = BargeInController()
         self.stt_worker = STTWorker(self.recorder, self.ctrl, logger=logging.getLogger("STTWorker"))
-        # Optional mic watcher for early barge-in; safe to disable by commenting if not needed
+        # mic watcher for early barge-in
         self.mic_watcher = MicEnergyWatcher(self.ctrl, mode="high_thresh_while_tts", logger=logging.getLogger("MicWatcher"))
-        # =================================================
 
         # Global shutdown variables
         self.shutdown_event = threading.Event() # global exit application flag
         self._sigint_count = 0
 
-        # Start gate variable
+        # Start gate variable for silence timeout
         self._first_turn = True
 
         self._install_signal_handlers()
     
     def setup_logging(self):
+        """Function to set up logging."""
         level = logging.DEBUG if self.config.dbg_log else self.config.log_level_nondebug
         logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def get_valid_emotions(self, gender: string = "female") -> List[str]:
+        """Get a list of valid emotions based on files in reference folder."""
         with open(self.config.tts_config_file, 'r') as f:
             tts_config = json.load(f)
         if gender == "female":
@@ -199,11 +212,12 @@ class Main:
         return [os.path.splitext(f)[0] for f in os.listdir(references_folder) if f.endswith('.wav')]        
 
     def print_available_emotions(self):
+        """Print to cmd line list of emotions."""
         emotions_str = ', '.join(f'(\033[0;91m{emotion.lower()}\033[0m)' for emotion in self.valid_emotions)
         print(f"Available emotions: {emotions_str}\n")
 
     def print_character_info(self):
-
+        """Print information of conversation."""
         char_name = color_text(self.chat_params['char'], '96')  # Light Cyan
         user_name = color_text(self.chat_params['user'], '93')  # Light Yellow
         char_desc = self.chat_params['char_description'].format(char=self.chat_params['char'])
@@ -216,14 +230,12 @@ class Main:
         print()  # Extra line for spacing
 
     def _print_listen_prompt(self, first: bool = False):
-        """
-        >>> NEW: Show a visible 'please speak' prompt before we block waiting
-        for the first (and subsequent) user utterance.
-        """
+        """Function that prints blocking wait call before conversation."""
         user_name = color_text(self.chat_params['user'], '93')
         print(f"\n>>> {user_name}: ", end="", flush=True)
 
     def get_system_prompt(self) -> str:
+        """Gets the system prompt based on inputs."""
         valid_emotions_str = ', '.join(f'[{emotion}]' for emotion in self.valid_emotions)
         
         # Replace placeholders in the system prompt
@@ -238,15 +250,13 @@ class Main:
         return system_prompt
 
     def process_llm_token(self, token: str):
-        # ===== cooperative cancel check on each token =====
+        """Processes llm tokens, separating into emotions and text to be spoken."""
+        # cooperative cancel check on each token if user interrupts
         if self.ctrl.cancel_event.is_set() or self.ctrl.barge_event.is_set():
             # Raise to abort streaming immediately (caught by caller)
             raise RuntimeError("CancelledByBargeIn")
-        # ==========================================================
         for char in token:
             self.assistant_text += char  # Add each character to the complete assistant text
-            # if char == ' ' and self.last_char == ']':
-            #     continue
             if char == '[':
                 if self.buffer:
                     self.process_buffer()
@@ -264,12 +274,14 @@ class Main:
             self.last_char = char
 
     def process_buffer(self):
+        """Process the buffer text, adding it to the sentence queue."""
         new_text = self.process_plain_text(self.buffer)
         if self.tts_handler:
             self.tts_handler.sentence_queue.add_text(new_text)
         self.buffer = ""
 
     def process_plain_text(self, text: str) -> str:
+        """Process the buffer text, replacing newlines and whitespaces."""
         self.plain_text += text
         self.plain_text = re.sub(r'\n', '', self.plain_text)    # Remove all linebreaks
         self.plain_text = re.sub(r'^\s+', '', self.plain_text)
@@ -281,6 +293,7 @@ class Main:
         return new_text
 
     def process_emotion(self):
+        """Process emotion buffer text."""
         emotion = self.buffer[1:-1].lower()
         current_emotion = "neutral" if emotion not in self.valid_emotions else emotion
         if self.config.print_emotions:
@@ -289,15 +302,17 @@ class Main:
             self.tts_handler.sentence_queue.add_emotion(current_emotion)
 
     def _announce_ai_turn(self):
+        """Print ai turn starter."""
         char_name = color_text(self.chat_params['char'], '96')
         print(f"<<< {char_name}: ", end="", flush=True)
 
     def run(self):
+        """Central function to run the conversation."""
         self.print_available_emotions()
         self.print_character_info()
         system_prompt = self.get_system_prompt()
 
-        # --- Prompt user to start scenario (models are already loaded in __init__) ---
+        # Prompt user to start scenario (models are already loaded in __init__)
         try:
             print("\nModels are loaded and ready.", flush=True)
             input(color_text(config.start_message, "32"))
@@ -308,23 +323,22 @@ class Main:
             return
 
         # Instead of having a while loop that loops between user input and AI input
-        # Need multithreading where there is one thread to process user input and whenever the user is speaking, the AI thread gets interrupted
+        # Have multithreading where there is one thread to process user input and whenever the user is speaking, the AI thread gets interrupted
         # Meanwhile the AI thread processes any previous user input and responds as normal
         # Basically it allows the user to interrupt the AI when it is speaking
         
-        # ===== start background workers =====
+        # start background workers
         self.stt_worker.start()
         self.mic_watcher.start()
-        # =========================================
 
-        # >>> ensure clean slate and PROMPT user for the FIRST turn
+        # ensure clean slate and PROMPT user for the FIRST turn
         self.ctrl.reset_for_next_turn()            # clear any stale events before first turn
         self._print_listen_prompt(first=True)      # visible "please speak" prompt
 
-        # ===== event-driven loop (no blocking input) =====
+        # event-driven loop (no blocking input)
         try:
             while not self.shutdown_event.is_set():
-                # Wait for finalized user utterance
+                # wait for finalized user utterance
                 user_text = self._get_and_drain_input(config.silence_timeout, config.silence_token) # drains + merges (empty in batches instead of single items)
 
                 # print user text
@@ -340,7 +354,7 @@ class Main:
                 # Run one AI turn cooperatively cancellable
                 self._run_ai_turn(user_text, system_prompt)
 
-                # >>> PROMPT the user again for the next turn
+                # prompt the user again for the next turn
                 self._print_listen_prompt()
         except KeyboardInterrupt:
             self._begin_shutdown()
@@ -355,16 +369,17 @@ class Main:
             try:
                 self.cleanup()
             except: pass
-        # ======================================================
 
     def _get_and_drain_input(self, silence_timeout: float = 5.0, silence_token: str = "(says nothing)") -> str | None:
         """
+        Function for getting user input.
+
         Blocks for the first item up to `silence_timeout` seconds.
             - If nothing arrives, return the `silence_token`.
             - Otherwise, drain everything currently queued, and returns
             a single merged string.
         """
-        # 1) Block for the first item
+        # Block for the first item
         try:
             if self._first_turn:
                 first = self.ctrl.input_queue.get() # no timeout on the first turn
@@ -376,7 +391,7 @@ class Main:
         # Something arrived
         parts = [first]
 
-        # 2) Drain everything that's already there, non-blocking
+        # Drain everything that's already there, non-blocking
         while True:
             try:
                 item = self.ctrl.input_queue.get_nowait()
@@ -389,12 +404,12 @@ class Main:
 
     def _cancel_ai_now(self):
         """
-        Hard stop TTS and ask LLM to abort. Clears events after.
+        Hard stop TTS and ask LLM to abort after user interruption. Clears events after.
         """
         self.ctrl.request_cancel()
         if self.tts_handler:
-            self.tts_handler.stop_now()  # NEW: immediate audio stop + clear queues
-        # If your LLM handler supports aborting network stream, call it:
+            self.tts_handler.stop_now()  # immediate audio stop + clear queues
+        # Call LLM handler abort 
         try:
             if hasattr(self.llm_handler, "abort"):
                 self.llm_handler.abort()
@@ -403,6 +418,7 @@ class Main:
         # Do not reset events here; next turn will do it.
 
     def _reset_token_state(self):
+        """Reset LLM response buffer states."""
         # Reset token processing state
         self.plain_text = ""
         self.last_plain_text = ""
@@ -412,6 +428,7 @@ class Main:
         self.assistant_text = ""
     
     def _run_ai_turn(self, user_text: str, system_prompt: str):
+        """Function that does an AI turn."""
         self._announce_ai_turn()
         self.llm_handler.add_user_text(user_text)
         self._reset_token_state()
@@ -423,7 +440,7 @@ class Main:
         if self.tts_handler:
             self.tts_handler.initialize_pyaudio()
             self.tts_handler.start_threads()
-            # >>> NEW: give TTS direct access to barge_event so it can self-stop
+            # give TTS direct access to barge_event so it can self-stop
             self.tts_handler.set_interrupt_event(self.ctrl.barge_event)
         
         try:
@@ -468,12 +485,13 @@ class Main:
             self.ctrl.ai_speaking.clear()
     
     def wait_for_tts_completion(self):
+        """Function that blocks until TTS model has finished voicing, unless user interrupt."""
         if not self.tts_handler:
             return
         logging.debug("Waiting for TTS to finish processing...")
         not_playing_start_time = None
         while not self.shutdown_event.is_set():
-            # >>> NEW: detect barge-in during TTS playout
+            # detect barge-in during TTS playout
             if self.ctrl.barge_event.is_set():
                 logging.debug("Barge detected during TTS playout; cancelling now.")
                 self._cancel_ai_now()   # calls tts_handler.stop_now(), clears queues, stops stream
@@ -496,12 +514,14 @@ class Main:
         logging.debug("All sentences processed and TTS playback completed.")
 
     def cleanup(self):
+        """Function to shutdown the Cosyvoice engine within the tts handler"""
         if self.tts_handler:
             logging.debug("Shutting down TTS engine...")
             self.tts_handler.engine.shutdown()
             logging.debug("TTS shutdown complete.")
 
     def _install_signal_handlers(self):
+        """Function to set up signal handlers for Ctrl+C"""
         def _handler(signum, frame):
             self._sigint_count += 1
             if self._sigint_count == 1:
@@ -514,7 +534,7 @@ class Main:
         signal.signal(signal.SIGTERM, _handler)
 
     def _begin_shutdown(self):
-        """One-shot graceful shutdown: cancel everything and unblock any waits."""
+        """Graceful shutdown: cancel everything and unblock any waits."""
         if self.shutdown_event.is_set():
             return
         self.shutdown_event.set()
@@ -542,6 +562,7 @@ class Main:
             pass
 
 if __name__ == '__main__':
+    # Parse arguments
     parser = argparse.ArgumentParser(description="Voice chat runner")
     parser.add_argument("-c", "--char-gender", dest="char_gender", default=None, help="Gender of the character (female or male)")
     parser.add_argument("-s", "--scenario", dest="scenario", default=None, help="Scenario to run (1, 2, 3)")
@@ -559,6 +580,8 @@ if __name__ == '__main__':
     start_message = args.start_message or Config.start_message
 
     config = Config(char_gender=char_gender, scenario=scenario, guidelines=guidelines, output_file=output_file_path, tts_config_file=tts_config_path, start_message=start_message)
+    
+    # Call main loop
     main = Main(config)
     try:
         main.run()

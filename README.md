@@ -31,29 +31,6 @@ conda install -c conda-forge ffmpeg=4.3.1
 
 6. Set up the TTS model
 
-- If using XTTSv2: (CURRENTLY BROKEN)
-
-    1. Download the [TTS model](https://drive.google.com/file/d/16WU3U3RIUbLzrUZo9E5hNifvvK-k67WT/view?usp=sharing) and unzip in `models/` directory
-
-    2. Change the TTS model path
-
-        In tts_config.json, for example:
-        ```
-        "specific_model": "XTTS_Lasinya",
-        "local_models_path": "models",
-        ```
-
-    3. Run the application
-
-        ```
-        python main.py --prompt-file prompts/default.json --output-file outputs/example.txt --tts-config tts_config_xtts.json
-        ```
-        - `prompt-file`: points to the JSON file containing the system prompt to the LLM
-        - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
-        - `tts-config`: points to the json file that contains the parameters for the tts engine
-
-- If using CosyVoice:
-
     1. Initialize Submodules (including Cosyvoice) 
         ```
         git submodule update --init --recursive
