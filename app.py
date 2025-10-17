@@ -33,7 +33,7 @@ def display_label(folder_name: str) -> str:
 
 @app.route('/')
 def index():
-    return render_template('index2.html')
+    return render_template('index.html')
 
 @app.route('/options', methods=['GET'])
 def options():
