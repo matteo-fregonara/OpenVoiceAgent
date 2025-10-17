@@ -94,7 +94,9 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
     callBtn.disabled = false;
     callBtn.className = "w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 hover:scale-105 flex items-center justify-center shadow-lg transition-all";
   } else if(state === 'connected'){
-    const subtitle = (scenarioLabel && genderLabel) ? `${scenarioLabel} - ${genderLabel}` : (scenarioLabel || '');
+    // Capitalize first letter of gender label
+    const capitalizedGender = genderLabel ? genderLabel.charAt(0).toUpperCase() + genderLabel.slice(1) : '';
+    const subtitle = (scenarioLabel && capitalizedGender) ? `${scenarioLabel} - ${capitalizedGender}` : (scenarioLabel || '');
     phoneContent.innerHTML = `
       <div class="text-center px-6 flex flex-col items-center">
         <div class="mb-6 flex items-center justify-center gap-1 h-12">
