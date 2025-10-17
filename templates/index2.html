@@ -74,14 +74,6 @@
                 <div class="text-lg font-bold">Trainings</div>
               </div>
             </div>
-
-            <!-- Nav -->
-            <nav class="hidden md:flex items-center gap-8">
-              <a href="#" class="font-medium hover:text-brandblue transition-colors">Trainings</a>
-              <a href="#" class="font-medium hover:text-brandblue transition-colors">Tutorial</a>
-              <a href="#" class="font-medium hover:text-brandblue transition-colors">Settings</a>
-              <img class="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow" src="https://i.pravatar.cc/80?img=12" alt="U" />
-            </nav>
           </div>
         </div>
       </header>
@@ -113,18 +105,15 @@
                     <button id="genderFemale"
                       class="gender-btn flex items-center justify-center gap-2.5 py-4 px-3.5 rounded-xl border-2 border-slate-200 bg-white hover:border-brandaccent/50 data-[active=true]:border-brandaccent"
                       data-gender="female" data-active="true">
-                      <!-- simple user icon -->
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 1118.88 6.196M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
+                      <!-- female icon -->
+                      <img src="{{ url_for('static', filename='images/female-icon.svg') }}" alt="Female" class="w-5 h-5" />
                       <span class="font-medium text-sm">Female</span>
                     </button>
                     <button id="genderMale"
                       class="gender-btn flex items-center justify-center gap-2.5 py-4 px-3.5 rounded-xl border-2 border-slate-200 bg-white hover:border-brandaccent/50"
                       data-gender="male" data-active="false">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 1118.88 6.196M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
+                      <!-- male icon -->
+                      <img src="{{ url_for('static', filename='images/male-icon.svg') }}" alt="Male" class="w-5 h-5" />
                       <span class="font-medium text-sm">Male</span>
                     </button>
                   </div>
