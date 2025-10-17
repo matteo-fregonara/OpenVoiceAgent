@@ -13,6 +13,7 @@ let callTimer        = null;
 let callSeconds      = 0;
 let loadingPollTimer = null;
 let isConnecting     = false; // Track if we're in the connecting/loading phase
+let loadingDotsTimer = null; // Track the animated ellipsis interval
 
 function setGender(g) {
   selectedGender = g;
@@ -54,6 +55,12 @@ updatePhoneTime();
 
 // UI states for phone
 function setPhoneState(state, scenarioLabel='', genderLabel=''){
+  // Clear any existing loading animation
+  if (loadingDotsTimer) {
+    clearInterval(loadingDotsTimer);
+    loadingDotsTimer = null;
+  }
+
   phoneContent.innerHTML = '';
   if(state === 'not-loaded'){
     phoneContent.innerHTML = `
@@ -65,10 +72,20 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
   } else if(state === 'connecting'){
     phoneContent.innerHTML = `
       <div class="text-2xl font-medium text-slate-900 leading-tight">Connecting</div>
-      <div class="text-sm text-slate-500 mt-2">Please wait...</div>
+      <div class="text-sm text-slate-500 mt-2"><span id="loadingText">Please wait.</span></div>
     `;
     callBtn.disabled = true;
     callBtn.className = "w-16 h-16 rounded-full bg-gray-300 cursor-not-allowed flex items-center justify-center shadow-lg";
+
+    // Start animated ellipsis (cycle through 1, 2, 3 dots)
+    let dotCount = 1;
+    const loadingTextEl = document.getElementById('loadingText');
+    loadingDotsTimer = setInterval(() => {
+      if (!loadingTextEl) return;
+      const dots = '.'.repeat(dotCount);
+      loadingTextEl.textContent = `Please wait${dots}`;
+      dotCount = (dotCount % 3) + 1; // Cycle through 1, 2, 3 (always at least 1 dot)
+    }, 400);
   } else if(state === 'ready'){
     phoneContent.innerHTML = `
       <div class="text-2xl font-medium text-slate-900 leading-tight">Ready to start</div>
@@ -273,6 +290,7 @@ async function stopCaller(){
   // Clear all timers
   if(callTimer){ clearInterval(callTimer); callTimer = null; }
   if(loadingPollTimer){ clearInterval(loadingPollTimer); loadingPollTimer = null; }
+  if(loadingDotsTimer){ clearInterval(loadingDotsTimer); loadingDotsTimer = null; }
 
   // Reset UI to initial state
   setPhoneState('not-loaded');
