@@ -92,7 +92,7 @@ async function loadOptions() {
 }
 
 // Launch (Load caller)
-document.getElementById('launchBtn').addEventListener('click', async () => {
+document.getElementById('launchBtn').addEventListener('click', async (event) => {
   statusEl.textContent = '';
   const scenario = scenarioSelect.value;
   if(!scenario){
@@ -100,11 +100,12 @@ document.getElementById('launchBtn').addEventListener('click', async () => {
     return;
   }
 
+  const btn = event?.currentTarget || document.getElementById('launchBtn');
+  const prevText = btn ? btn.textContent : 'Load caller';
+
   try {
     // show feedback
-    const oldText = event.target.textContent;
-    event.target.textContent = 'Loading caller...';
-    event.target.disabled = true;
+    if(btn){ btn.textContent = 'Loading caller...'; btn.disabled = true; }
 
     const res = await fetch('/launch', {
       method: 'POST',
@@ -114,21 +115,21 @@ document.getElementById('launchBtn').addEventListener('click', async () => {
     const data = await res.json();
     statusEl.textContent = JSON.stringify(data, null, 2);
 
-    isModelLoaded = (data.status === 'launched');
+    // Treat both fresh launch and already-running as success
+    isModelLoaded = (data.status === 'launched' || data.status === 'already running');
     if(isModelLoaded){
       setPhoneState('ready');
       alert('Caller loaded');
     } else {
       alert(data.status || 'Launch error');
     }
-
-    event.target.textContent = 'Load caller';
-    event.target.disabled = false;
   } catch (e) {
     console.error(e);
     statusEl.textContent = 'Failed to launch. See console.';
     alert('Failed to launch');
     setPhoneState('not-ready');
+  } finally {
+    if(btn){ btn.textContent = prevText; btn.disabled = false; }
   }
 });
 
