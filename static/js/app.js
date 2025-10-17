@@ -12,12 +12,36 @@ let isCallActive     = false;
 let callTimer        = null;
 let callSeconds      = 0;
 let loadingPollTimer = null;
+let isConnecting     = false; // Track if we're in the connecting/loading phase
 
 function setGender(g) {
   selectedGender = g;
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.dataset.active = (btn.dataset.gender === g) ? 'true' : 'false';
   });
+}
+
+// Update the launch/stop button based on current state
+function updateLaunchButton() {
+  const btn = document.getElementById('launchBtn');
+  if (!btn) return;
+
+  if (isConnecting) {
+    // State 2: Connecting/Loading - show "Cancel loading"
+    btn.textContent = 'Cancel loading';
+    btn.className = 'w-full h-12 text-base font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-md transition-colors';
+    btn.disabled = false;
+  } else if (isModelLoaded || isCallActive) {
+    // State 3 & 4: Model loaded or call active - show "Stop caller"
+    btn.textContent = isCallActive ? 'End & unload' : 'Stop caller';
+    btn.className = 'w-full h-12 text-base font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-md transition-colors';
+    btn.disabled = false;
+  } else {
+    // State 1: Not loaded - show "Load caller"
+    btn.textContent = 'Load caller';
+    btn.className = 'w-full h-12 text-base font-semibold rounded-xl bg-branddark hover:bg-[#033551] text-white shadow-md transition-colors';
+    btn.disabled = false;
+  }
 }
 
 // Update fake phone clock
@@ -94,10 +118,12 @@ async function loadOptions() {
 
     // initial phone message - always start with not-loaded
     setPhoneState('not-loaded');
+    updateLaunchButton();
   } catch (e) {
     console.error(e);
     statusEl.textContent = 'Failed to load options from server. Check /options route.';
     setPhoneState('not-loaded');
+    updateLaunchButton();
   }
 }
 
@@ -114,13 +140,10 @@ async function pollForModelReady() {
         clearInterval(loadingPollTimer);
         loadingPollTimer = null;
       }
+      isConnecting = false;
       isModelLoaded = true;
       setPhoneState('ready');
-      const btn = document.getElementById('launchBtn');
-      if (btn) {
-        btn.textContent = 'Load caller';
-        btn.disabled = false;
-      }
+      updateLaunchButton();
       return true;
     }
     return false;
@@ -130,8 +153,17 @@ async function pollForModelReady() {
   }
 }
 
-// Launch (Load caller)
+// Multi-purpose Launch/Stop button handler
 document.getElementById('launchBtn').addEventListener('click', async (event) => {
+  const btn = event?.currentTarget || document.getElementById('launchBtn');
+
+  // If we're connecting, loaded, or in a call, this button stops/cancels
+  if (isConnecting || isModelLoaded || isCallActive) {
+    await stopCaller();
+    return;
+  }
+
+  // Otherwise, we're in State 1 - launch the caller
   statusEl.textContent = '';
   const scenario = scenarioSelect.value;
   if(!scenario){
@@ -139,12 +171,11 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     return;
   }
 
-  const btn = event?.currentTarget || document.getElementById('launchBtn');
-
   try {
-    // show feedback
-    if(btn){ btn.textContent = 'Loading caller...'; btn.disabled = true; }
+    // Show loading state
+    if(btn){ btn.textContent = 'Loading...'; btn.disabled = true; }
     setPhoneState('connecting');
+    isConnecting = true;
 
     const res = await fetch('/launch', {
       method: 'POST',
@@ -156,6 +187,9 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
 
     // Check if launch was successful
     if (data.status === 'launched' || data.status === 'already running') {
+      // Update button to show "Cancel loading"
+      updateLaunchButton();
+
       // Start polling for "Models are loaded and ready."
       if (loadingPollTimer) {
         clearInterval(loadingPollTimer);
@@ -170,15 +204,17 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     } else {
       // Launch failed
       alert(data.message || data.status || 'Launch error');
+      isConnecting = false;
       setPhoneState('not-loaded');
-      if(btn){ btn.textContent = 'Load caller'; btn.disabled = false; }
+      updateLaunchButton();
     }
   } catch (e) {
     console.error(e);
     statusEl.textContent = 'Failed to launch. See console.';
     alert('Failed to launch');
+    isConnecting = false;
     setPhoneState('not-loaded');
-    if(btn){ btn.textContent = 'Load caller'; btn.disabled = false; }
+    updateLaunchButton();
   }
 });
 
@@ -197,6 +233,7 @@ callBtn.addEventListener('click', async () => {
       callSeconds = 0;
       const scenarioLabel = scenarioSelect.options[scenarioSelect.selectedIndex]?.textContent || '';
       setPhoneState('connected', scenarioLabel, selectedGender);
+      updateLaunchButton(); // Update to show "End & unload"
       callTimer = setInterval(() => {
         callSeconds += 1;
         const m = String(Math.floor(callSeconds/60)).padStart(2,'0');
@@ -208,28 +245,37 @@ callBtn.addEventListener('click', async () => {
       /* ignore */
     }
   } else {
-    // END call -> /stop
-    await endCall();
+    // END call -> /stop (this will also stop the caller)
+    await stopCaller();
   }
 });
 
-async function endCall(){
+// Stop/cancel the caller (works in all states: connecting, loaded, or during call)
+async function stopCaller(){
+  const btn = document.getElementById('launchBtn');
+
   try {
+    // Show stopping feedback
+    if(btn){ btn.textContent = 'Stopping...'; btn.disabled = true; }
+
     const res = await fetch('/stop', { method: 'POST' });
     await res.json();
-  } catch {}
+  } catch (e) {
+    console.error('Error stopping caller:', e);
+  }
+
+  // Reset all state
   isCallActive = false;
-  isModelLoaded = false; // Reset after call ends
+  isModelLoaded = false;
+  isConnecting = false;
+
+  // Clear all timers
   if(callTimer){ clearInterval(callTimer); callTimer = null; }
   if(loadingPollTimer){ clearInterval(loadingPollTimer); loadingPollTimer = null; }
-  setPhoneState('not-loaded');
 
-  // Re-enable the load caller button
-  const btn = document.getElementById('launchBtn');
-  if (btn) {
-    btn.textContent = 'Load caller';
-    btn.disabled = false;
-  }
+  // Reset UI to initial state
+  setPhoneState('not-loaded');
+  updateLaunchButton();
 }
 
 // Logs - auto-refresh
