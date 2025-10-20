@@ -1,3 +1,5 @@
 RealtimeTTS[coqui]==0.4.5
 RealtimeSTT==0.2.1
 addict==2.4.0
+Flask==3.1.2
+resampy==0.4.3

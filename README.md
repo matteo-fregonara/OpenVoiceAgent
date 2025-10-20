@@ -63,7 +63,6 @@ conda install -c conda-forge ffmpeg=4.3.1
         ```
         cd third_party/cosyvoice
         pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com
-        pip install resampy
         ```
 
     3. Download Model Weights
