@@ -47,7 +47,16 @@ conda install -c conda-forge ffmpeg=4.3.1
         git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B
         ```
 
-    4. Run application from root
+7. If on an advanced GPU switch torch versions
+    ```
+    pip uninstall torch torchvision torchaudio
+    pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128 
+    ```
+
+    Note: switch out cu128 for the correct cuda runtime shown by `nvidia-smi`
+
+8. Run application
+    1. From command line with terminal intermediate outputs
         ```
         python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
         ```
@@ -56,15 +65,10 @@ conda install -c conda-forge ffmpeg=4.3.1
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
         - `tts-config`: points to the json file that contains the parameters for the tts engine
 
-        #### PoC Tests
-
-        If you want to run a PoC test as defined in our research plan, replace `{your conda environment}` in `set "PYTHON_EXE=%USERPROFILE%\miniconda3\envs\{your conda environment}\python.exe"` in the .bat file you would like to run, and execute:
+    2. With frontend without intermediate outputs
         ```
-        poc_tests\pX_sY.bat
+        flask run
         ```
-
-        - `X` should be the participant number (1-9)
-        - `Y` should be the scenario number (1-3)
 
 ### Troubleshooting
 
