@@ -1,0 +1,68 @@
+:root{
+  --brand-blue: #02b1ea;
+  --brand-dark: #024464;
+  --brand-accent: #f77e24;
+}
+
+/* phone call pulse ring */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); opacity: 1; }
+  50%  { transform: scale(1.05); opacity: 0.75; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+.pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
+
+/* audio wave animations for active calls - symmetric from center */
+@keyframes audioWave1 {
+  0%, 100% {
+    height: 25%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 100%;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes audioWave2 {
+  0%, 100% {
+    height: 40%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 85%;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes audioWave3 {
+  0%, 100% {
+    height: 60%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 100%;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes audioWave4 {
+  0%, 100% {
+    height: 35%;
+    transform: scaleY(1);
+  }
+  50% {
+    height: 75%;
+    transform: scaleY(1);
+  }
+}
+
+.audio-bar-call {
+  min-height: 25%;
+}
+
+/* active state for gender segmented buttons */
+.gender-btn[data-active="true"]{
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 2px rgba(247,126,36,0.15);
+}

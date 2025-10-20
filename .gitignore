@@ -5,3 +5,5 @@ lib/__pycache__
 lib/__pycache__/*
 
 tts_config.json
+
+.vscode
