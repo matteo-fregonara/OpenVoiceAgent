@@ -12,3 +12,5 @@ models/XTTS_Lasinya
 models/XTTS_Lasinya/*
 
 tts_config.json
+
+.vscode
