@@ -78,6 +78,19 @@ class TTSHandler:
         if self.dbg_log:
             print("Test Play TTS")
 
+        # Small warm-up
+        self.stream.feed("Hi!")
+        self.stream.play(log_synthesized_text=True, muted=True)
+        self.engine.synthesize("Hello world")
+
+        # Clear queue to prevent warmup audio from playing
+        import queue as queue_module
+        try:
+            while not self.engine.queue.empty():
+                self.engine.queue.get_nowait()
+        except queue_module.Empty:
+            pass
+
     def initialize_pyaudio(self):
         """TTS initialized during each ai turn."""
         self.stop_event = threading.Event()
