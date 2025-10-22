@@ -13,10 +13,7 @@ PROMPTS_ROOT = "prompts"
 GENDER_TO_DIR = {"female": "female_char", "male": "male_char"}
 
 def list_scenarios():
-    """
-    Scan prompts/ and return folder names that are directories and not hidden.
-    Example return: ["scenario_1", "scenario_2", "test_example"]
-    """
+    """Return a list of non-hidden directories in the PROMPTS_ROOT folder."""
     if not os.path.isdir(PROMPTS_ROOT):
         return []
     entries = []
@@ -28,15 +25,17 @@ def list_scenarios():
     return entries
 
 def display_label(folder_name: str) -> str:
-    # Show as "test example" (keep lowercase as requested, just replace underscores with spaces)
+    """Replaces underscores with spaces."""
     return folder_name.replace("_", " ")
 
 @app.route('/')
 def index():
+    """Render the main web UI."""
     return render_template('index.html')
 
 @app.route('/options', methods=['GET'])
 def options():
+    """Return selectable options for the UI."""
     scenarios = [
         {"id": s, "label": display_label(s)}
         for s in list_scenarios()
@@ -51,6 +50,7 @@ def options():
 
 @app.route('/launch', methods=['POST'])
 def launch():
+    """Launch the model for a selected scenario + gender."""
     global process
 
     # If already running, short-circuit
@@ -120,6 +120,7 @@ def launch():
 
     # Background thread to continuously read output and save to file
     def log_reader():
+        """Save to a file."""
         with open("outputs/web_log.txt", "w", encoding="utf-8") as logf:
             for line in process.stdout:
                 logf.write(line)
@@ -137,6 +138,7 @@ def launch():
 
 @app.route('/run', methods=['POST'])
 def run_step():
+    """Send a single newline to the running process' stdin to start the conversation."""
     global process
     if process is None or process.poll() is not None:
         return jsonify({"status": "process not running"})
@@ -148,6 +150,7 @@ def run_step():
 
 @app.route('/stop', methods=['POST'])
 def stop():
+    """Gracefully stop the running process; escalate if it doesn't exit in time."""
     global process
     if process is None or process.poll() is not None:
         return jsonify({"status": "no process running"})
@@ -193,6 +196,7 @@ def stop():
 
 @app.route('/logs', methods=['GET'])
 def get_logs():
+    """Retrieve the current aggregated stdout log from the background process."""
     try:
         with open("outputs/web_log.txt", "r", encoding="utf-8") as f:
             return jsonify({"log": f.read()})
