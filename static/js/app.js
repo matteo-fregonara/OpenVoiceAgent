@@ -1,3 +1,19 @@
+
+/**
+ * @file app.js
+ * @description
+ * Front-end controller for the AI caller demo.
+ *
+ * Handles:
+ *  - Loading available scenarios and genders from Flask backend (/options)
+ *  - Launching, polling, and stopping the backend process (/launch, /logs, /stop)
+ *  - Managing the UI states of the phone interface and timer
+ *
+ * Usage:
+ *  Called automatically on page load via `loadOptions()` and `setGender('female')`.
+ *
+ */
+
 const scenarioSelect = document.getElementById('scenarioSelect');
 const statusEl       = document.getElementById('status');
 const logsEl         = document.getElementById('logs');
@@ -15,6 +31,10 @@ let loadingPollTimer = null;
 let isConnecting     = false; // Track if we're in the connecting/loading phase
 let loadingDotsTimer = null; // Track the animated ellipsis interval
 
+/**
+ * Set the selected gender and update button UI.
+ * @param {"female"|"male"} g
+ */
 function setGender(g) {
   selectedGender = g;
   document.querySelectorAll('.gender-btn').forEach(btn => {
@@ -22,7 +42,7 @@ function setGender(g) {
   });
 }
 
-// Update the launch/stop button based on current state
+/** Update the main launch button label and style based on app state. */
 function updateLaunchButton() {
   const btn = document.getElementById('launchBtn');
   if (!btn) return;
@@ -45,7 +65,7 @@ function updateLaunchButton() {
   }
 }
 
-// Update fake phone clock
+/** Update the fake phone clock UI (HH:MM AM/PM). */
 function updatePhoneTime(){
   const now = new Date();
   phoneTimeEl.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute:'2-digit', hour12:true });
@@ -53,7 +73,12 @@ function updatePhoneTime(){
 setInterval(updatePhoneTime, 1000);
 updatePhoneTime();
 
-// UI states for phone
+/**
+ * Update the phone panel to a specific UI state.
+ * @param {"not-loaded"|"connecting"|"ready"|"connected"} state
+ * @param {string} [scenarioLabel]
+ * @param {string} [genderLabel]
+ */
 function setPhoneState(state, scenarioLabel='', genderLabel=''){
   // Clear any existing loading animation
   if (loadingDotsTimer) {
@@ -122,7 +147,13 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
 document.getElementById('genderFemale').addEventListener('click', () => setGender('female'));
 document.getElementById('genderMale').addEventListener('click',    () => setGender('male'));
 
-// Options loader
+/**
+ * Fetches the available scenarios and genders from the backend.
+ * Populates the dropdown and resets the phone UI.
+ * 
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadOptions() {
   try {
     const res = await fetch('/options');
@@ -147,7 +178,10 @@ async function loadOptions() {
   }
 }
 
-// Poll logs to check if model is ready
+/**
+ * Poll the server logs and detect readiness marker.
+ * @returns {Promise<boolean>} true when ready line is seen
+ */
 async function pollForModelReady() {
   try {
     const res = await fetch('/logs');
@@ -270,7 +304,7 @@ callBtn.addEventListener('click', async () => {
   }
 });
 
-// Stop/cancel the caller (works in all states: connecting, loaded, or during call)
+/** Unified stop/cancel behavior; clears timers and resets UI. */
 async function stopCaller(){
   const btn = document.getElementById('launchBtn');
 
@@ -299,7 +333,7 @@ async function stopCaller(){
   updateLaunchButton();
 }
 
-// Logs - auto-refresh
+/** Periodically refresh the text logs panel. */
 async function refreshLogs(){
   try {
     const res = await fetch('/logs');
