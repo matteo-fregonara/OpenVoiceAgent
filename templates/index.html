@@ -109,6 +109,19 @@
                   </div>
                 </div>
 
+                <!-- Sub-voice -->
+                <div>
+                  <h2 class="text-base font-semibold mb-2">Voice selection</h2>
+                  <div class="relative">
+                    <select id="voiceSelect"
+                      class="w-full appearance-none rounded-xl border-2 border-slate-200 bg-white px-4 py-4 pr-10 text-slate-900 shadow-sm hover:border-brandaccent/50 focus:outline-none focus:ring-2 focus:ring-brandaccent data-[state=open]:border-brandaccent">
+                      <!-- Populated dynamically from /options -> voices based on gender -->
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">▼</div>
+                  </div>
+                </div>
+
+
                 <!-- Actions -->
                 <div class="space-y-3">
                   <button id="launchBtn"

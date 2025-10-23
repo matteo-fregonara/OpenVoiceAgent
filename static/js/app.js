@@ -21,6 +21,7 @@ const logsEl         = document.getElementById('logs');
 const callBtn        = document.getElementById('callBtn');
 const phoneContent   = document.getElementById('phoneContent');
 const phoneTimeEl    = document.getElementById('phoneTime');
+const voiceSelect    = document.getElementById('voiceSelect');
 
 let selectedGender   = 'female';
 let isModelLoaded    = false;
@@ -30,6 +31,7 @@ let callSeconds      = 0;
 let loadingPollTimer = null;
 let isConnecting     = false; // Track if we're in the connecting/loading phase
 let loadingDotsTimer = null; // Track the animated ellipsis interval
+let voicesByGender   = { female: [], male: [] };
 
 /**
  * Set the selected gender and update button UI.
@@ -40,6 +42,31 @@ function setGender(g) {
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.dataset.active = (btn.dataset.gender === g) ? 'true' : 'false';
   });
+  populateVoiceOptions(selectedGender);
+}
+
+/** Update the voice options based on gender state. */
+function populateVoiceOptions(gender) {
+  const voices = (voicesByGender[gender] || []);
+  voiceSelect.innerHTML = '';
+
+  if (!voices.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '(no voices found)';
+    voiceSelect.appendChild(opt);
+    voiceSelect.disabled = true;
+    return;
+  }
+
+  voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;      // folder name
+    opt.textContent = v.label;
+    voiceSelect.appendChild(opt);
+  });
+
+  voiceSelect.disabled = false;
 }
 
 /** Update the main launch button label and style based on app state. */
@@ -167,6 +194,17 @@ async function loadOptions() {
       scenarioSelect.appendChild(opt);
     });
 
+    // data.voices is an array like [{id:"female", voices:[{id,label}...]}, {id:"male", ...}]
+    voicesByGender = { female: [], male: [] };
+    (data.voices || []).forEach(group => {
+      if (group && group.id && Array.isArray(group.voices)) {
+        voicesByGender[group.id] = group.voices;
+      }
+    });
+
+    // Initialize voice dropdown for current gender
+    populateVoiceOptions(selectedGender);
+
     // initial phone message - always start with not-loaded
     setPhoneState('not-loaded');
     updateLaunchButton();
@@ -225,6 +263,12 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     return;
   }
 
+  const voice = voiceSelect.value;
+  if (!voice) {
+    alert('Please select a voice for the chosen gender');
+    return;
+  }
+
   try {
     // Show loading state
     if(btn){ btn.textContent = 'Loading...'; btn.disabled = true; }
@@ -234,7 +278,7 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     const res = await fetch('/launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario, gender: selectedGender })
+      body: JSON.stringify({ scenario, gender: selectedGender, voice })
     });
     const data = await res.json();
     statusEl.textContent = JSON.stringify(data, null, 2);

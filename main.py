@@ -87,6 +87,7 @@ class Config:
     - stt_silence_duration: how long to wait after user stops speaking to start processing
     - tts_config_file: path to json file for tts config; can be overriden via --tts-config
     - output_file: file to store output transcripts; can be overriden via --output-file
+    - wavs_directory: directory to store wav voice samples; can be overriden via --wavs-directory
     - silence_timeout: how long to wait for user to speak before returning silence token
     - silence_token: silence token to release after silence_timeout seconds
     - start_message: start message to print before starting conversation
@@ -101,9 +102,10 @@ class Config:
     prompt_file: str = "prompts/scenario_1/female_char/prompt.json"
     tts_config_file: str = "tts_config_cosyvoice.json" # default; can be overridden via --tts-config
     output_file: str = "outputs/example.txt"              # default; can be overridden via --output-file
+    wavs_directory: str = "wavs/reference_woman/Standard"   # default; can be overriden via --wavs-directory
     silence_timeout: float = 8.0
     silence_token: str = "(says nothing)"
-    start_message: str = "Start scenario?  (press Enter to begin, Ctrl+C to exit) "
+    start_message: str = "Start scenario?  (press Enter to begin, Ctrl+C to exit) " # default; can be overriden via --start-message
     print_emotions: bool = True
     print_llm_text: bool = True
     dbg_log: bool = False
@@ -143,7 +145,7 @@ class Main:
         else:
             print(f"ERROR: invalid engine chosen in tts_config file {tts_config['engine']} resorting to default engine.")
             from tts_handler_cosyvoice import TTSHandler
-        self.tts_handler = TTSHandler(config.tts_config_file, self.char_gender)      
+        self.tts_handler = TTSHandler(config.tts_config_file, config.wavs_directory)      
         
         # Token processing state
         self.plain_text = ""
@@ -175,12 +177,7 @@ class Main:
 
     def get_valid_emotions(self, gender: string = "female") -> List[str]:
         """Get a list of valid emotions based on files in reference folder."""
-        with open(self.config.tts_config_file, 'r') as f:
-            tts_config = json.load(f)
-        if gender == "female":
-            references_folder = tts_config['references_folder_female']
-        else:
-            references_folder = tts_config['references_folder_male']
+        references_folder = self.config.wavs_directory
         return [os.path.splitext(f)[0] for f in os.listdir(references_folder) if f.endswith('.wav')]        
 
     def print_available_emotions(self):
@@ -535,14 +532,16 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--output-file", dest="output_file", default=None, help="Path to file to use for output file")
     parser.add_argument("-t", "--tts-config", dest="tts_config", default=None, help="Path to file to use for tts configuration parameters")
     parser.add_argument("-m", "--start-message", dest="start_message", default=None, help="String message to print before scenario start")
+    parser.add_argument("-w", "--wavs-directory", dest="wavs_directory", default=None, help="Path to the directory that holds wav voice samples")
     args = parser.parse_args()
 
     prompt_file_path = args.prompt_file or Config.prompt_file
     output_file_path = args.output_file or Config.output_file
     tts_config_path = args.tts_config or Config.tts_config
     start_message = args.start_message or Config.start_message
+    wavs_directory = args.wavs_directory or Config.wavs_directory
 
-    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path, start_message=start_message)
+    config = Config(prompt_file=prompt_file_path, output_file=output_file_path, tts_config_file=tts_config_path, start_message=start_message, wavs_directory=wavs_directory)
     
     # Call main loop
     main = Main(config)

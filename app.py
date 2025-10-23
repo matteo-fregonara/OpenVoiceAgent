@@ -11,6 +11,8 @@ process = None  # global process reference
 
 PROMPTS_ROOT = "prompts"
 GENDER_TO_DIR = {"female": "female_char", "male": "male_char"}
+FEMALE_ROOT = "wavs/reference_woman"
+MALE_ROOT = "wavs/reference_man"
 
 def list_scenarios():
     """Return a list of non-hidden directories in the PROMPTS_ROOT folder."""
@@ -19,6 +21,30 @@ def list_scenarios():
     entries = []
     for name in os.listdir(PROMPTS_ROOT):
         full = os.path.join(PROMPTS_ROOT, name)
+        if os.path.isdir(full) and not name.startswith("."):
+            entries.append(name)
+    entries.sort()
+    return entries
+
+def list_female_voices():
+    """Return a list of non-hidden directories in the FEMALE_ROOT folder."""
+    if not os.path.isdir(FEMALE_ROOT):
+        return []
+    entries = []
+    for name in os.listdir(FEMALE_ROOT):
+        full = os.path.join(FEMALE_ROOT, name)
+        if os.path.isdir(full) and not name.startswith("."):
+            entries.append(name)
+    entries.sort()
+    return entries
+
+def list_male_voices():
+    """Return a list of non-hidden directories in the MALE_ROOT folder."""
+    if not os.path.isdir(MALE_ROOT):
+        return []
+    entries = []
+    for name in os.listdir(MALE_ROOT):
+        full = os.path.join(MALE_ROOT, name)
         if os.path.isdir(full) and not name.startswith("."):
             entries.append(name)
     entries.sort()
@@ -40,11 +66,23 @@ def options():
         {"id": s, "label": display_label(s)}
         for s in list_scenarios()
     ]
+    female_voices = [
+        {"id": s, "label": display_label(s)}
+        for s in list_female_voices()
+    ]
+    male_voices = [
+        {"id": s, "label": display_label(s)}
+        for s in list_male_voices()
+    ]
     return jsonify({
         "scenarios": scenarios,
         "genders": [
             {"id": "female", "label": "female"},
             {"id": "male", "label": "male"}
+        ],
+        "voices": [
+            {"id": "female", "voices": female_voices},
+            {"id": "male", "voices": male_voices},
         ]
     })
 
@@ -61,6 +99,7 @@ def launch():
     data = request.get_json(silent=True) or {}
     selected_scenario = data.get("scenario")  # expects folder name like "scenario_1" or "test_example"
     selected_gender = data.get("gender")      # "female" or "male"
+    selected_voice = data.get("voice")
 
     # Fallbacks if nothing provided
     available = list_scenarios()
@@ -89,11 +128,25 @@ def launch():
     os.makedirs("outputs", exist_ok=True)
     output_file = os.path.join("outputs", f"{selected_scenario}_{selected_gender}_{ts}.txt")
 
+    # Build wavs reference folder path
+    if selected_gender == "female":
+        wavs_directory = os.path.join(FEMALE_ROOT, selected_voice)
+    else:
+        wavs_directory = os.path.join(MALE_ROOT, selected_voice)
+
+    if not os.path.isdir(wavs_directory):
+        return jsonify({
+            "status": "error",
+            "message": f"Wavs not found for voice '{selected_voice}' and gender '{selected_gender}'",
+            "wavs_directory": wavs_directory
+        }), 400
+
     cmd = [
         'python', 'main.py',
         '--prompt-file', prompt_file,
         '--output-file', output_file,
-        '--tts-config', 'tts_config_cosyvoice.json'
+        '--tts-config', 'tts_config_cosyvoice.json',
+        '--wavs-directory', wavs_directory,
     ]
 
     # Start the process (Windows vs POSIX)
@@ -133,7 +186,8 @@ def launch():
         "scenario": selected_scenario,
         "gender": selected_gender,
         "prompt_file": prompt_file,
-        "output_file": output_file
+        "output_file": output_file,
+        "wavs_directory": wavs_directory,
     })
 
 @app.route('/run', methods=['POST'])

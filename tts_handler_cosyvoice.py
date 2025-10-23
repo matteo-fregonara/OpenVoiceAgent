@@ -39,14 +39,11 @@ class TTSHandler:
     - engine: the cosyvoice engine to synthesize audio with
     - stream: TextToAudioStream which uses the engine to create audio
     """
-    def __init__(self, config_file='tts_config.json', gender: string = "female"):
+    def __init__(self, config_file='tts_config.json', wavs_directory: string = "wavs/reference_woman/Standard"):
         with open(config_file, 'r') as f:
             self.config = json.load(f)
         
-        if gender == "female":
-            self.references_folder = self.config['references_folder_female']
-        else:
-            self.references_folder = self.config['references_folder_male']
+        self.references_folder = wavs_directory
         self.dbg_log = self.config['dbg_log']
         self.stop_event = threading.Event()
         self.sentence_queue = ThreadSafeSentenceQueue()

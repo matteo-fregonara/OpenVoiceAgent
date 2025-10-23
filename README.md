@@ -58,7 +58,7 @@ conda install -c conda-forge ffmpeg=4.3.1
 8. Run application
     1. From command line with terminal intermediate outputs
         ```
-        python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json
+        python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json --wavs-directory wavs/reference_woman/Standard
         ```
 
         - `prompt-file`: points to the JSON file containing the system prompt to the LLM
