@@ -4,6 +4,9 @@ _KLM Next-Gen AI/XR Trainings_
 ![License](https://img.shields.io/badge/License-Apache_2\.0-blue)
 ![Python](https://img.shields.io/badge/python-3\.10-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![STT](https://img.shields.io/badge/STT-FasterWhisper-blue)
+![LLM](https://img.shields.io/badge/LLM-Llama-orange)
+![TTS](https://img.shields.io/badge/TTS-CosyVoice-green)
 
 ## Overview
 
@@ -86,7 +89,7 @@ _Note: GPU recommended. CPU fallback works but is slower._
 
    - Load one of the supported models: `Llama-3.2-8b-instruct` or `Llama-3.2-3b-instruct`
    - For best real-time performance, use `Llama-3.2-1b-instruct`
-   - Start the **Local Inference Server** (typically runs on `localhost:1234`)
+   - Start the Local Inference Server (typically runs on `localhost:1234`)
    - Verify the server is active before launching the pipeline
 
 9. Run application (two options)
@@ -168,18 +171,20 @@ An example of `prompt.json`
 }
 ```
 
-Prompts are dynamically loaded by the frontend dropdowns. `scenario_{N}` and `prompt.json` can be any name.
+Prompts are dynamically loaded by the frontend dropdowns. The folder name (`scenario_{N}`) and file name (`prompt.json`) can be customized.
 
 ### Adding Your Own Voices
 
-Add new voice reference samples under wavs/:
+Add new voice reference samples **with their matching transcriptions** under wavs/:
 
 ```
 wavs/
 └─ reference_{woman|man}/
    └─ <VariantName>/
-      ├─ ref_01.wav
-      ├─ ref_02.wav
+      ├─ {emotion_1}.txt
+      ├─ {emotion_1}.wav
+      ├─ {emotion_2}.txt
+      ├─ {emotion_2}.wav
       └─ ...
 ```
 
@@ -190,6 +195,16 @@ wavs/
 - Typical **16-bit PCM** (default for most recorders)  
 - Each clip: 3 – 10 seconds of clear speech  
 - Avoid background noise, music, or long silences
+
+**Transcription guidelines**
+- The text should **exactly match** what is said — word for word, including punctuation (`,`, `.`, `?`, `!`).
+- Use **consistent casing** — e.g., uppercase letters for shouted words if that reflects tone.
+- Avoid extra spaces, emojis, or unspoken annotations.
+- If the audio includes hesitation sounds (`uh`, `um`), or expressions like *wow*, include them in the text too.
+- Keep filenames simple and descriptive, such as `angry.wav` / `angry.txt`, since these filenames represent the **emotions** the LLM can select from.
+
+**Warning:** Mismatched or inaccurate transcripts can reduce TTS quality and voice consistency.
+
 
 ## Troubleshooting
 
