@@ -83,7 +83,7 @@ _Note: GPU recommended. CPU fallback works but is slower._
     pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128 
     ```
 
-    Note: switch out cu128 for the correct cuda runtime shown by `nvidia-smi`
+    _Note: switch out cu128 for the correct cuda runtime shown by_ `nvidia-smi`
 
 8. Launch LM Studio
 
