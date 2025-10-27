@@ -6,7 +6,7 @@ _KLM Next-Gen AI/XR Trainings_
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![STT](https://img.shields.io/badge/STT-FasterWhisper-blue)
 ![LLM](https://img.shields.io/badge/LLM-Llama-orange)
-![TTS](https://img.shields.io/badge/TTS-CosyVoice-green)
+![TTS](https://img.shields.io/badge/TTS-CosyVoice2-green)
 
 ## Overview
 
@@ -21,7 +21,7 @@ It integrates:
 - Fully **on-premise** (no external API calls)
 - **FasterWhisper** STT for low-latency speech recognition
 - Local inference via **LM Studio** (Llama 3.2 1B / 3B Instruct)
-- **CosyVoice** TTS with reference-voice cloning
+- **CosyVoice2** TTS with reference-voice cloning
 - CLI and **Flask** frontend interface
 - **Multi-threaded** real-time processing pipeline
 
@@ -61,7 +61,7 @@ _Note: GPU recommended. CPU fallback works but is slower._
 
 6. Set up the TTS model
 
-    1. Initialize Submodules (including Cosyvoice) 
+    1. Initialize Submodules (including Cosyvoice2) 
         ```
         git submodule update --init --recursive
         ```
@@ -148,6 +148,19 @@ _Note: optional if using Flask frontend_
 
 ```
 
+### Saved Files
+
+The `outputs/` directory stores all logs and transcriptions generated during runtime.
+
+- **web_log.txt** — created automatically when running the **Flask frontend**.  
+  Contains real-time logging of system events, model responses, and errors.
+
+- **Transcripts (CLI mode)** — saved according to the path set in `--output-file`.  
+  In the Quickstart example, this is `outputs/example.txt`.
+
+- **Transcripts (Frontend mode)** — automatically saved under: `outputs/{selected_scenario}_{selected_gender}_{selected_voice}_{timestamp}.txt`
+
+
 ## Customization
 
 ### Adding Your Own Prompts
@@ -190,7 +203,7 @@ wavs/
 
 **Recommended audio requirements**
 - `.wav` format  
-- **16 kHz** sample rate (CosyVoice automatically downsamples higher rates)  
+- **16 kHz** sample rate (CosyVoice2 automatically downsamples higher rates)  
 - **Mono** or **stereo** — both accepted  
 - Typical **16-bit PCM** (default for most recorders)  
 - Each clip: 3 – 10 seconds of clear speech  
@@ -264,17 +277,17 @@ pip install "nvidia-cuda-runtime-cu12" "nvidia-cublas-cu12" "nvidia-cudnn-cu12==
 | GPU       | RTX 4070 (slow), RTX 5090 (optimal)   |
 | STT       | FasterWhisper                         |
 | TTT/LLM   | LM Studio – Llama 3.2 1B/3B/8b        |
-| TTS       | CosyVoice 0.5B                        |
+| TTS       | CosyVoice2 0.5B                        |
 
 ## License
 
 This project is released under the **Apache License 2.0**.  
 Refer to the [`LICENSE`](LICENSE) file for details.  
-Components such as **CosyVoice**, **FasterWhisper**, and **Llama** follow their respective licenses.
+Components such as **CosyVoice2**, **FasterWhisper**, and **Llama** follow their respective licenses.
 
 ## Acknowledgements
 
 - **KLM Royal Dutch Airlines**  
 - **TU Delft — Joint Interdisciplinary Project (JIP) 2025**  
 - Open-source frameworks powering this project:  
-  **FasterWhisper**, **CosyVoice**, **LM Studio**, **PyTorch**, and **Meta Llama**
+  **FasterWhisper**, **CosyVoice2**, **LM Studio**, **PyTorch**, and **Meta Llama**
