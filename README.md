@@ -65,10 +65,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 ### Demo Video
 
-<iframe src="https://www.youtube.com/watch?v=2EcDLaaYMCg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-
-[![Watch the video](https://img.youtube.com/vi/2EcDLaaYMCg/0.jpg)](https://www.youtube.com/watch?v=2EcDLaaYMCg)
+[![Demo video](docs/thumbnail.png)](https://www.youtube.com/watch?v=2EcDLaaYMCg)
 
 ## Quickstart
 
