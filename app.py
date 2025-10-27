@@ -126,7 +126,7 @@ def launch():
     # Create a unique output file per run
     ts = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs("outputs", exist_ok=True)
-    output_file = os.path.join("outputs", f"{selected_scenario}_{selected_gender}_{ts}.txt")
+    output_file = os.path.join("outputs", f"{selected_scenario}_{selected_gender}_{selected_voice}_{ts}.txt")
 
     # Build wavs reference folder path
     if selected_gender == "female":
