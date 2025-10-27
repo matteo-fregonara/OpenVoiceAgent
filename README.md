@@ -4,9 +4,9 @@ _KLM Next-Gen AI/XR Trainings_
 ![License](https://img.shields.io/badge/License-Apache_2\.0-blue)
 ![Python](https://img.shields.io/badge/python-3\.10-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
-![STT](https://img.shields.io/badge/STT-FasterWhisper-blue)
-![LLM](https://img.shields.io/badge/LLM-Llama-orange)
-![TTS](https://img.shields.io/badge/TTS-CosyVoice2-green)
+![STT](https://img.shields.io/badge/STT-FasterWhisper-9b59b6)
+![LLM](https://img.shields.io/badge/LLM-Llama-green)
+![TTS](https://img.shields.io/badge/TTS-CosyVoice2-58a6ff)
 
 ## Overview
 
