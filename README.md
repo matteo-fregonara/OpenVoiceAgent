@@ -65,9 +65,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 ### Demo Video
 
-<video src="docs/demo.mp4" controls></video>
-
-Or click [here](https://youtu.be/your_video_link_here) to watch the demo on Youtube.
+The demo will be published soon.
 
 ## Quickstart
 
@@ -103,7 +101,7 @@ _Note: GPU recommended. CPU fallback works but is slower._
 
 6. Set up the TTS model
 
-    1. Initialize Submodules (including Cosyvoice2) 
+    1. Initialize Submodules (including CosyVoice2) 
         ```
         git submodule update --init --recursive
         ```
