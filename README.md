@@ -241,6 +241,9 @@ wavs/
       └─ ...
 ```
 
+Keep filenames simple and descriptive, such as `angry.wav` / `angry.txt`, since these filenames represent the **emotions** the LLM can select from. It is recommended to choose your emotion set based on the [Emotion Typology](https://emotiontypology.com/), a well-structured reference of 60 human emotions for consistent labeling.
+
+
 **Recommended audio requirements**
 - `.wav` format  
 - **16 kHz** sample rate (CosyVoice2 automatically downsamples higher rates)  
@@ -254,7 +257,6 @@ wavs/
 - Use **consistent casing** — e.g., uppercase letters for shouted words if that reflects tone.
 - Avoid extra spaces, emojis, or unspoken annotations.
 - If the audio includes hesitation sounds (`uh`, `um`), or expressions like *wow*, include them in the text too.
-- Keep filenames simple and descriptive, such as `angry.wav` / `angry.txt`, since these filenames represent the **emotions** the LLM can select from.
 
 **Warning:** Mismatched or inaccurate transcripts can reduce TTS quality and voice consistency.
 
