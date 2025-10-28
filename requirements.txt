@@ -2,4 +2,4 @@ RealtimeSTT==0.2.1
 addict==2.4.0
 Flask==3.1.2
 resampy==0.4.3
-sentence2stream==0.3.1
+stream2sentence==0.3.1
