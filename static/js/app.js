@@ -1,3 +1,19 @@
+
+/**
+ * @file app.js
+ * @description
+ * Front-end controller for the AI caller demo.
+ *
+ * Handles:
+ *  - Loading available scenarios and genders from Flask backend (/options)
+ *  - Launching, polling, and stopping the backend process (/launch, /logs, /stop)
+ *  - Managing the UI states of the phone interface and timer
+ *
+ * Usage:
+ *  Called automatically on page load via `loadOptions()` and `setGender('female')`.
+ *
+ */
+
 const scenarioSelect = document.getElementById('scenarioSelect');
 const statusEl       = document.getElementById('status');
 const logsEl         = document.getElementById('logs');
@@ -5,6 +21,7 @@ const logsEl         = document.getElementById('logs');
 const callBtn        = document.getElementById('callBtn');
 const phoneContent   = document.getElementById('phoneContent');
 const phoneTimeEl    = document.getElementById('phoneTime');
+const voiceSelect    = document.getElementById('voiceSelect');
 
 let selectedGender   = 'female';
 let isModelLoaded    = false;
@@ -14,15 +31,45 @@ let callSeconds      = 0;
 let loadingPollTimer = null;
 let isConnecting     = false; // Track if we're in the connecting/loading phase
 let loadingDotsTimer = null; // Track the animated ellipsis interval
+let voicesByGender   = { female: [], male: [] };
 
+/**
+ * Set the selected gender and update button UI.
+ * @param {"female"|"male"} g
+ */
 function setGender(g) {
   selectedGender = g;
   document.querySelectorAll('.gender-btn').forEach(btn => {
     btn.dataset.active = (btn.dataset.gender === g) ? 'true' : 'false';
   });
+  populateVoiceOptions(selectedGender);
 }
 
-// Update the launch/stop button based on current state
+/** Update the voice options based on gender state. */
+function populateVoiceOptions(gender) {
+  const voices = (voicesByGender[gender] || []);
+  voiceSelect.innerHTML = '';
+
+  if (!voices.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '(no voices found)';
+    voiceSelect.appendChild(opt);
+    voiceSelect.disabled = true;
+    return;
+  }
+
+  voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;      // folder name
+    opt.textContent = v.label;
+    voiceSelect.appendChild(opt);
+  });
+
+  voiceSelect.disabled = false;
+}
+
+/** Update the main launch button label and style based on app state. */
 function updateLaunchButton() {
   const btn = document.getElementById('launchBtn');
   if (!btn) return;
@@ -45,7 +92,7 @@ function updateLaunchButton() {
   }
 }
 
-// Update fake phone clock
+/** Update the fake phone clock UI (HH:MM AM/PM). */
 function updatePhoneTime(){
   const now = new Date();
   phoneTimeEl.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute:'2-digit', hour12:true });
@@ -53,7 +100,12 @@ function updatePhoneTime(){
 setInterval(updatePhoneTime, 1000);
 updatePhoneTime();
 
-// UI states for phone
+/**
+ * Update the phone panel to a specific UI state.
+ * @param {"not-loaded"|"connecting"|"ready"|"connected"} state
+ * @param {string} [scenarioLabel]
+ * @param {string} [genderLabel]
+ */
 function setPhoneState(state, scenarioLabel='', genderLabel=''){
   // Clear any existing loading animation
   if (loadingDotsTimer) {
@@ -122,7 +174,13 @@ function setPhoneState(state, scenarioLabel='', genderLabel=''){
 document.getElementById('genderFemale').addEventListener('click', () => setGender('female'));
 document.getElementById('genderMale').addEventListener('click',    () => setGender('male'));
 
-// Options loader
+/**
+ * Fetches the available scenarios and genders from the backend.
+ * Populates the dropdown and resets the phone UI.
+ * 
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadOptions() {
   try {
     const res = await fetch('/options');
@@ -136,6 +194,17 @@ async function loadOptions() {
       scenarioSelect.appendChild(opt);
     });
 
+    // data.voices is an array like [{id:"female", voices:[{id,label}...]}, {id:"male", ...}]
+    voicesByGender = { female: [], male: [] };
+    (data.voices || []).forEach(group => {
+      if (group && group.id && Array.isArray(group.voices)) {
+        voicesByGender[group.id] = group.voices;
+      }
+    });
+
+    // Initialize voice dropdown for current gender
+    populateVoiceOptions(selectedGender);
+
     // initial phone message - always start with not-loaded
     setPhoneState('not-loaded');
     updateLaunchButton();
@@ -147,7 +216,10 @@ async function loadOptions() {
   }
 }
 
-// Poll logs to check if model is ready
+/**
+ * Poll the server logs and detect readiness marker.
+ * @returns {Promise<boolean>} true when ready line is seen
+ */
 async function pollForModelReady() {
   try {
     const res = await fetch('/logs');
@@ -191,6 +263,12 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     return;
   }
 
+  const voice = voiceSelect.value;
+  if (!voice) {
+    alert('Please select a voice for the chosen gender');
+    return;
+  }
+
   try {
     // Show loading state
     if(btn){ btn.textContent = 'Loading...'; btn.disabled = true; }
@@ -200,7 +278,7 @@ document.getElementById('launchBtn').addEventListener('click', async (event) => 
     const res = await fetch('/launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario, gender: selectedGender })
+      body: JSON.stringify({ scenario, gender: selectedGender, voice })
     });
     const data = await res.json();
     statusEl.textContent = JSON.stringify(data, null, 2);
@@ -270,7 +348,7 @@ callBtn.addEventListener('click', async () => {
   }
 });
 
-// Stop/cancel the caller (works in all states: connecting, loaded, or during call)
+/** Unified stop/cancel behavior; clears timers and resets UI. */
 async function stopCaller(){
   const btn = document.getElementById('launchBtn');
 
@@ -299,7 +377,7 @@ async function stopCaller(){
   updateLaunchButton();
 }
 
-// Logs - auto-refresh
+/** Periodically refresh the text logs panel. */
 async function refreshLogs(){
   try {
     const res = await fetch('/logs');

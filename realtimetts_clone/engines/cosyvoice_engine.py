@@ -19,6 +19,14 @@ import pyaudio
 os.environ["TQDM_DISABLE"] = "1"
 
 class CosyvoiceEngine(BaseEngine):
+    """
+    Class to handle the TTS model CosyVoice2.
+    Internal States:
+    - model_path: path to local model
+    - prompt_speech_16k: the wav file to be used for voice cloning
+    - prompt_text: text to be voiced
+    - _synthesize_lock: lock that controls so theres only one generation at a time?
+    """
     def __init__(self, model_path, prompt_speech, prompt_text):
         super().__init__()
         self.model_path = model_path
@@ -29,7 +37,7 @@ class CosyvoiceEngine(BaseEngine):
         self.post_init()
 
     def set_cloning_reference(self, path, prompt_text=None):
-        """Mimic old engine API."""
+        """Set the voice cloning path and prompt text for new generation."""
         self.prompt_speech_16k = load_wav(path, 16000)
         if prompt_text:
             self.prompt_text = prompt_text
@@ -37,10 +45,12 @@ class CosyvoiceEngine(BaseEngine):
             self.prompt_text = ""  # fallback
 
     def post_init(self):
+        """Start the engine."""
         self.engine_name = "cosyvoice"
         self.create_worker_process()
 
     def get_stream_info(self):
+        """Get the information needed by the TextToAudioStream playback function."""
         # fallback if cosvoice not initialised
         sr = 16000
         if hasattr(self, "cosyvoice") and hasattr(self.cosyvoice, "sample_rate"):
@@ -49,6 +59,7 @@ class CosyvoiceEngine(BaseEngine):
 
 
     def create_worker_process(self):
+        """Create the worker thread for cosyvoice."""
         self.parent_synthesize_pipe, child_pipe = SafePipe()
         self.main_ready_event = mp.Event()
         self.synthesize_process = mp.Process(
@@ -61,6 +72,7 @@ class CosyvoiceEngine(BaseEngine):
 
     @staticmethod
     def _synthesize_worker(conn, ready_event, model_path, prompt_speech_16k, prompt_text):
+        """Synthesize worker thread for cosyvoice."""
         # instantiate CosyVoice2 once in worker
         model = CosyVoice2(model_path, load_jit=False, load_trt=False, load_vllm=False, fp16=True)
         ready_event.set()
@@ -74,24 +86,7 @@ class CosyvoiceEngine(BaseEngine):
                 updatedSpeech = msg["data"]["prompt_speech_16k"]
                 updatedText = msg["data"]["prompt_text"]
 
-                # non-streaming inference
-                # This yields one dict per text chunk
-                # all_audio_bytes = b''
-                # for output in model.inference_zero_shot(
-                #     tts_text=text,
-                #     prompt_text=updatedText,
-                #     prompt_speech_16k=updatedSpeech,
-                #     stream=False
-                # ):
-                #     audio_tensor = output['tts_speech']  # shape (1, n_samples)
-                #     audio = audio_tensor.numpy().astype(np.float32)
-                #     all_audio_bytes += audio.tobytes()
-
-                # # send once at end
-                # conn.send(("success", all_audio_bytes))
-                # conn.send(("finished", ""))
-
-                # streaming inference
+                # Streaming inference
                 for output in model.inference_zero_shot(
                     tts_text=text,
                     prompt_text=updatedText,
@@ -108,23 +103,7 @@ class CosyvoiceEngine(BaseEngine):
     
 
     def synthesize(self, text: str):
-        # non-streaming inference
-        # with self._synthesize_lock:
-        #     self.parent_synthesize_pipe.send({
-        #         "command": "synthesize",
-        #         "data": {
-        #             "text": text,
-        #             "prompt_speech_16k": self.prompt_speech_16k,
-        #             "prompt_text": self.prompt_text
-        #         }
-        #     })
-        #     status, result = self.parent_synthesize_pipe.recv()
-        #     # You’ll get a single big audio bytes block
-        #     while "finished" not in status:
-        #         if isinstance(result, bytes):
-        #             self.queue.put(result)  # put the whole audio in the queue
-        #         status, result = self.parent_synthesize_pipe.recv()
-
+        """Synthesize audio without a worker."""
         try:
             # streaming inference
             with self._synthesize_lock:

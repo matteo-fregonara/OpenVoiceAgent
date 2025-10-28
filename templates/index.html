@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Care Team Training</title>
+    <title>Conversational Training</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
 
     <!-- Tailwind CDN (simple, no build step) -->
@@ -52,7 +52,7 @@
 
       <!-- Header (from header.tsx) -->
       <header class="bg-white border-b border-slate-200 flex-shrink-0">
-        <div class="mx-auto max-w-7xl px-6 py-3">
+        <div class="pl-4 pr-6 py-3">
           <div class="flex items-center justify-between">
             <!-- Logo + Title -->
             <div class="flex items-center gap-3">
@@ -71,7 +71,7 @@
       <!-- Main -->
       <main class="flex-1">
         <div class="mx-auto max-w-7xl px-6 pb-14">
-          <h1 class="text-4xl md:text-5xl font-bold tracking-tight mt-6">Care Team Training</h1>
+          <h1 class="text-4xl md:text-5xl font-bold tracking-tight mt-6">Conversational Training</h1>
 
           <div class="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             <!-- Left: Controls (from phone-trainer.tsx) -->
@@ -109,6 +109,19 @@
                   </div>
                 </div>
 
+                <!-- Sub-voice -->
+                <div>
+                  <h2 class="text-base font-semibold mb-2">Voice selection</h2>
+                  <div class="relative">
+                    <select id="voiceSelect"
+                      class="w-full appearance-none rounded-xl border-2 border-slate-200 bg-white px-4 py-4 pr-10 text-slate-900 shadow-sm hover:border-brandaccent/50 focus:outline-none focus:ring-2 focus:ring-brandaccent data-[state=open]:border-brandaccent">
+                      <!-- Populated dynamically from /options -> voices based on gender -->
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">▼</div>
+                  </div>
+                </div>
+
+
                 <!-- Actions -->
                 <div class="space-y-3">
                   <button id="launchBtn"
@@ -120,12 +133,12 @@
                 <!-- Status + Logs -->
                 <details class="rounded-lg bg-white/80 ring-1 ring-black/5 open:shadow">
                   <summary class="cursor-pointer px-4 py-2 text-sm font-semibold">Status</summary>
-                  <pre id="status" class="px-4 pb-3 text-xs whitespace-pre-wrap"></pre>
+                  <pre id="status" class="px-4 pb-3 text-xs whitespace-pre-wrap break-words overflow-x-hidden"></pre>
                 </details>
 
                 <details class="rounded-lg bg-black text-white/90 ring-1 ring-black/5">
                   <summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-white/90">Logs</summary>
-                  <pre id="logs" class="px-4 pb-3 text-xs whitespace-pre-wrap min-h-[160px]"></pre>
+                  <pre id="logs" class="px-4 pb-3 text-xs whitespace-pre-wrap break-words min-h-[160px] overflow-x-hidden"></pre>
                 </details>
               </div>
             </section>

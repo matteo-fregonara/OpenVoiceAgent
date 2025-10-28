@@ -7,25 +7,29 @@ from lib.bargecontroller import BargeInController
 
 class MicEnergyWatcher(threading.Thread):
     """
-    Simple RMS-based VAD using pyaudio (no external deps).
-    Sets ctrl.barge_event as soon as sustained voice energy is detected.
-    This lets us interrupt TTS/LLM before the utterance is finalized.
+    Simple RMS-based voice activity detection using pyaudio.
+    Sets barge_event as soon as sustained voice energy is detected.
+    This lets us interrupt AI turn (TTS/LLM) before the utterance is finalized.
     To avoid the mic being triggered by your own TTS output,
     we use a **higher threshold while AI is speaking**. If you’re on open
     speakers and it still self-triggers, set mode="disabled" (see below).
+    
+    Internal States:
+    - ctrl: BargeInController that controls interruptions of ai turn
+    - rate: audio rate for pyaudio
+    - chunk: chunks size for pyaudio
+    - base_thresh: noise threshold
+    - sustain_ms: how many milliseconds voice has to be above base_thresh before triggering watcher
+    - device_index: device to watch energy for
+    - mode: what mode is activated for the energy watcher
+        - "high_thresh_while_tts" (default): x4 threshold when AI speaking
+        - "always": same threshold always (most sensitive, may self-trigger)
+        - "disabled": don't watch mic at all (no instant barge-in; rely on STT)
+    - logger: logger to use for debug statements
     """
     def __init__(self, ctrl: BargeInController, rate=16000, chunk=2048,
                  base_thresh=6000, sustain_ms=450, device_index=None, 
                  mode="high_thresh_while_tts", logger=None):
-        
-        """
-        base_thresh: noise threshold
-        sustain_ms: how long sustained speech has to be there to be considered an event
-        mode:
-          - "high_thresh_while_tts" (default): x4 threshold when AI speaking
-          - "always": same threshold always (most sensitive, may self-trigger)
-          - "disabled": don’t watch mic at all (no instant barge-in; rely on STT)
-        """
         super().__init__(daemon=True)
         self.ctrl = ctrl
         self.rate = rate
@@ -40,12 +44,14 @@ class MicEnergyWatcher(threading.Thread):
         self.log = logger or logging.getLogger(__name__)
 
     def open(self):
+        """Open pyaudio stream to watch audio for."""
         self.pa = pyaudio.PyAudio()
         self.stream = self.pa.open(format=pyaudio.paInt16, channels=1, rate=self.rate,
                                    input=True, frames_per_buffer=self.chunk,
                                    input_device_index=self.device_index)
 
     def close(self):
+        """Close pyaudio stream to watch audio for."""
         try:
             if self.stream:
                 self.stream.stop_stream()
@@ -59,6 +65,7 @@ class MicEnergyWatcher(threading.Thread):
             self.pa = None
 
     def _effective_thresh(self):
+        """Get the effective threshold based on watcher mode."""
         if self.mode == "disabled":
             return 10**12  # never trigger
         if self.mode == "high_thresh_while_tts" and self.ctrl.ai_speaking.is_set():
@@ -66,6 +73,7 @@ class MicEnergyWatcher(threading.Thread):
         return self.base_thresh
 
     def run(self):
+        """Run the energy watcher, triggering a barge event if voice is detected."""
         if self.mode == "disabled":
             return
         try:

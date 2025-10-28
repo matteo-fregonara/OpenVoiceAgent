@@ -3,6 +3,9 @@ from typing import Optional
 import uuid
 
 class Sentence:
+    """
+    Singular sentence for the TTS handler.
+    """
     def __init__(self, emotion: Optional[str] = None):
         self.text = ""
         self.emotion = emotion
@@ -33,12 +36,21 @@ class Sentence:
             return f"Sentence(text='{self.text}', emotion='{self.emotion}', is_finished={self.is_finished})"
 
 class ThreadSafeSentenceQueue:
+    """
+    Sentence queue for the TTS handler before it gets played.
+
+    Internal States:
+    - queue: queue of Sentence objects to be played.
+    - current_sentence: current sentence to be played
+    - lock: lock for the sentence queue
+    """
     def __init__(self):
         self.queue = []
         self.current_sentence = None
         self.lock = threading.Lock()
 
     def finish_current_sentence(self):
+        """Put the current sentence on the to be played queue."""
         with self.lock:
             if self.current_sentence and not self.current_sentence.is_finished:
                 self.current_sentence.mark_finished()
@@ -47,6 +59,7 @@ class ThreadSafeSentenceQueue:
                 self.current_sentence = None
 
     def add_emotion(self, emotion: str):
+        """Finish the current sentence by adding it to the queue, create a new sentence with a new emotion."""
         with self.lock:
             if self.current_sentence and self.current_sentence.get_text():
                 self.current_sentence.mark_finished()
@@ -55,11 +68,8 @@ class ThreadSafeSentenceQueue:
             self.current_sentence = Sentence(emotion)
 
     def add_text(self, text: str):
+        """Add text to the current sentence if it doesn't already have text."""
         with self.lock:
-            # print(f"Text: {text}, not text.strip(): {not text.strip()}, not self.current_sentence: {not self.current_sentence}")
-            # if self.current_sentence:
-            #     print(f"not self.current_sentence.get_text(): {not self.current_sentence.get_text()}")
-
             if not text.strip():
                 if not self.current_sentence:
                     return
@@ -69,10 +79,10 @@ class ThreadSafeSentenceQueue:
             if not self.current_sentence:
                 self.current_sentence = Sentence()
             
-            #print(f"added {text} to sentence {self.current_sentence.id}")
             self.current_sentence.add_text(text)
 
     def get_sentence(self) -> Optional[Sentence]:
+        """Get the next sentence to be played."""
         with self.lock:
             if self.queue:
                 sentence = self.queue.pop(0)
@@ -85,9 +95,11 @@ class ThreadSafeSentenceQueue:
                 return None
 
     def is_empty(self) -> bool:
+        """Returns whether the current queue is empty."""
         with self.lock:
             return len(self.queue) == 0
 
     def __len__(self):
+        """Returns length of current queue."""
         with self.lock:
             return len(self.queue)

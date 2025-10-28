@@ -2,6 +2,15 @@ import logging
 from typing import List, Tuple
 
 class Conversation:
+    """
+    Data structure to store the conversation between ai and user.
+
+    Internal States:
+    - debug: whether to print debugging messages
+    - history: list of messages where each message is a tuple with "role" and "message"
+    - max_tokens: max number of tokens to store when truncating the history. (currently unused)
+    - _user_msg_check_max: maximum number of user messages to merge during user merge check
+    """
     def __init__(self, max_tokens: int = 1548, debug = False, _user_msg_check_max = 4):
         self.debug = debug
         self.history: List[Tuple[str, str]] = []
@@ -9,12 +18,15 @@ class Conversation:
         self._user_msg_check_max = _user_msg_check_max # Max number of user messages to merge during check
 
     def add_user_message(self, text: str):
+        """Add a user message to the history."""
         self.history.append(("user", text))
 
     def add_assistant_message(self, text: str):
+        """Add an ai message to the history."""
         self.history.append(("assistant", text))
 
     def get_history(self) -> List[Tuple[str, str]]:
+        """Get the list of messages in the history. Merge the last X user messages."""
         # Check if the user has created many messages without LLM response
         accumulated_user_messages = list()
         # Run through the most recent messages, accumulating the last four
@@ -29,9 +41,11 @@ class Conversation:
         return self.history
 
     def clear_history(self):
+        """Clear existing history."""
         self.history.clear()
 
     def truncate_history(self, system_prompt: str, count_tokens_func):
+        """Truncate history according to max tokens."""
         system_tokens = count_tokens_func(system_prompt)
         total_tokens = system_tokens
         truncated_history = []

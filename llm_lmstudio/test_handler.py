@@ -9,6 +9,7 @@ sys.path.append(parent_dir)
 from llm_handler import LLMHandler
 
 def main():
+    """Test function for the LLMHandler."""
     # Initialize the LLMHandler with log_stats set to True for demonstration
     handler = LLMHandler(log_stats=True, completion_params_file="completion_params.json")
 
