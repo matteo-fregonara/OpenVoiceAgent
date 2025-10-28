@@ -76,7 +76,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 0. Install [Visual Studio Community](https://visualstudio.microsoft.com/free-developer-offers/) with 'Desktop development with C++'
 
-    <img src="./docs/visualstudio.png" alt="Visual Studio Screenshot" width="400">
+    <img src="./docs/visualstudio.png" alt="Visual Studio Screenshot" width="600">
 
 2. Install a version of [Miniconda](https://repo.anaconda.com/miniconda/)
 
@@ -106,7 +106,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 6. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-8b-instruct`, `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
 
-  <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="400">
+    <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="600">
 
    _Note: Other LLMs can be switched in as desired but large LLMs increase the latency._
 
@@ -332,8 +332,7 @@ Components such as **CosyVoice2**, **FasterWhisper**, and **Llama** have their r
 
 - **KLM Royal Dutch Airlines**  
 - **TU Delft Joint Interdisciplinary Project (JIP) 2025**  
-- Open-source frameworks powering this project:  
-  **FasterWhisper**, **CosyVoice2**, **LMStudio**, **PyTorch**, and **Meta Llama**
+- Open-source frameworks powering this project: **FasterWhisper**, **CosyVoice2**, **LMStudio**, **PyTorch**, and **Meta Llama**
 
 ## Citation
 
