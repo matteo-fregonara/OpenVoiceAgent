@@ -1,6 +1,4 @@
-# OpenVoiceAgent (JIP 2025 @ KLM)  
-_KLM Next-Gen AI/XR Trainings_
-
+# OpenVoiceAgent: On-Premise Conversational AI for Realistic and Emotional Dialogue (for Joint Interdisciplanary Project @ KLM)
 ![License](https://img.shields.io/badge/License-Apache_2\.0-blue)
 ![Python](https://img.shields.io/badge/python-3\.10-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -8,13 +6,19 @@ _KLM Next-Gen AI/XR Trainings_
 ![LLM](https://img.shields.io/badge/LLM-Llama-green)
 ![TTS](https://img.shields.io/badge/TTS-CosyVoice2-58a6ff)
 
+### _Delft University of Technology JIP 2025: KLM Next-Gen AI/XR Trainings_
+
+Authors: Moniek Smink, Matteo Fregonara, Natanael Djajadi
+
+In collaboration with: Siri Høystad, Sem Zeelenberg, Winnie Cheng, and Vassilis Varnas
+
 ## Overview
 
 **OpenVoiceAgent** is a proof-of-concept conversational AI agent capable of handling **high-stakes training dialogues**.  
 It integrates:
-- **STT** (Speech-To-Text for speech recognition)
-- **TTT** (Text-to-Text using Large Language Models for text generation)
-- **TTS** (Text-To-speech for speech synthesis)
+- **STT** (Speech-To-Text for speech recognition) - **Faster-Whisper**
+- **TTT** (Text-to-Text using Large Language Models for text generation) - **Llama-3.2**
+- **TTS** (Text-To-speech for speech synthesis) - **CozyVoice2**
 - **Flask frontend** + multi-threaded pipeline
 
 Developed as part of the TU Delft × KLM Joint Interdisciplinary Project (JIP) 2025. Download the full report (PDF) [here](docs/OpenVoiceAgent_Report.pdf).
@@ -26,10 +30,10 @@ Below is an overview of the full voice-interaction pipeline, including the ratio
 ![System Pipeline](docs/pipeline.png)
 
 ### Key Features
-- Fully **on-premise** (no external API calls)
+- Fully **on-premise** (no external API calls after startup)
 - **FasterWhisper** STT for low-latency speech recognition
-- Local inference via **LM Studio** (Llama 3.2 1B / 3B Instruct)
-- **CosyVoice2** TTS with reference-voice cloning
+- Local LLM inference via **LMStudio** (Llama-3.2 3/8B Instruct with 1B for speculative decoding)
+- **CosyVoice2** TTS with voice cloning using reference emotion audio clips
 - CLI and **Flask** frontend interface
 - **Multi-threaded** real-time processing pipeline
 
@@ -53,9 +57,9 @@ The frontend interface is shown below. For usage instructions, refer to **Quicks
 The system uses a **multi-threaded architecture** to manage simultaneous speech recognition, response generation, and voice synthesis.  
 
 As shown below, the conversational pipeline runs across distinct threads for:
-- **User Listener** — captures and transcribes user speech via the STT model.  
-- **Response Generator** — processes transcribed text and produces agent responses using the TTT model.  
-- **Response Voicer** — handles speech synthesis through two sub-threads:  
+- **User Listener**: captures and transcribes user speech via the STT model.  
+- **Response Generator**: processes transcribed text and produces agent responses using the TTT model.  
+- **Response Voicer**: handles speech synthesis through two sub-threads:  
   - one generates emotional speech via the TTS model, and  
   - the other (**Response Player**) plays the generated speech output in real time.  
 
@@ -63,43 +67,50 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 ![Multithreading Diagram](docs/multithreading.png)
 
-### Demo Video
+### Demo Video (Click to Play)
 
 [![Demo video](docs/thumbnail.png)](https://www.youtube.com/watch?v=2EcDLaaYMCg)
 
 ## Quickstart
+### Instructions
 
-0. Install Visual Studio with C++ Build Tools
+0. Install [Visual Studio Community](https://visualstudio.microsoft.com/free-developer-offers/) with 'Desktop development with C++'
 
-1. Install a version of [miniconda](https://repo.anaconda.com/miniconda/)
+    <img src="./docs/visualstudio.png" alt="Visual Studio Screenshot" width="400">
 
-2. Initialize your environment (in miniconda)
+2. Install a version of [Miniconda](https://repo.anaconda.com/miniconda/)
 
-```
-conda create -n openvoiceagent python=3.10.9
-conda activate openvoiceagent
-```
+3. Initialize your environment (in Miniconda)
 
-3. Clone this repository
+    ```
+    conda create -n openvoiceagent python=3.10.9
+    conda activate openvoiceagent
+    ```
 
-```
-git clone https://github.com/mfregonara/OpenVoiceAgent.git
-cd OpenVoiceAgent
-```
+4. Clone this repository
 
-4. Install the required dependencies (assuming using the GPU)
+    ```
+    git clone https://github.com/mfregonara/OpenVoiceAgent.git
+    cd OpenVoiceAgent
+    ```
 
-```
-pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
-pip install -r requirements.txt 
-conda install -c conda-forge ffmpeg=4.3.1 
-```
+5. Install the required dependencies (assuming with GPU)
 
-_Note: GPU recommended. CPU fallback works but is slower._
+    ```
+    pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu118
+    pip install -r requirements.txt 
+    conda install -c conda-forge ffmpeg=4.3.1 
+    ```
 
-5. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-8b-instruct`, `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
+    _Note: GPU recommended. CPU fallback works but is slower._
 
-6. Set up the TTS model
+6. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-8b-instruct`, `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
+
+  <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="400">
+
+   _Note: Other LLMs can be switched in as desired but large LLMs increase the latency._
+
+7. Set up the TTS model
 
     1. Initialize Submodules (including CosyVoice2) 
         ```
@@ -117,72 +128,62 @@ _Note: GPU recommended. CPU fallback works but is slower._
         git clone https://www.modelscope.cn/iic/CosyVoice2-0.5B.git pretrained_models/CosyVoice2-0.5B
         ```
 
-7. (Optional) Switch Torch versions if using a newer or high-end GPU (e.g., RTX 5090)
+8. (Optional) Switch Torch versions if using a newer or high-end GPU (e.g., RTX 5090)
     ```
     pip uninstall torch torchvision torchaudio
     pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128 
     ```
 
-    _Note: switch out cu128 for the correct cuda runtime shown by_ `nvidia-smi`
+    _Note: switch out_ `cu128` _for the correct cuda runtime shown by_ `nvidia-smi`
 
-8. Launch LM Studio
+9. Launch LMStudio
 
    - Load one of the supported models: `Llama-3.2-8b-instruct` or `Llama-3.2-3b-instruct`
-   - For best real-time performance, use `Llama-3.2-1b-instruct`
+   - For best real-time performance, use `Llama-3.2-1b-instruct` for speculative decoding under the `Inference` tab
    - Start the Local Inference Server (typically runs on `localhost:1234`)
    - Verify the server is active before launching the pipeline
 
-9. Run application (two options)
+10. Run application (two options)
     1. CLI: From command line with terminal intermediate outputs
         ```
         python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json --wavs-directory wavs/reference_woman/Standard
         ```
 
-        - `prompt-file`: points to the JSON file containing the system prompt to the LLM
+        - `prompt-file`: points to the JSON file containing the system prompt to the LLM (explained more in **Customization → Adding Your Own Prompts**)
         - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
         - `tts-config`: points to the json file that contains the parameters for the tts engine
+        - `wavs-directory`: points to the directory that contains the emotional voice samples (explained more in **Customization → Adding Your Own Voices**)
 
     2. Flask: With frontend without intermediate outputs
-        ```
-        flask run
-        ```
-
-### Frontend usage
-1. Launch LM Studio → Load model → Start local server
-2. Run `flask run`
-3. Open browser at `http://127.0.0.1:5000`
-4. Select scenario, gender, and voice → Click **Load Model**
-5. Logs appear in `outputs/web_log.txt`
-
-### CLI Parameters
-_Note: optional if using Flask frontend_
-
-| Flag               | Description                    |
-| ------------------ | ------------------------------ |
-| `--prompt-file`    | Path to LLM system prompt JSON |
-| `--output-file`    | Path for the output transcript |
-| `--tts-config`     | TTS configuration JSON         |
-| `--wavs-directory` | Reference voice folder path    |
+        1. Run `flask run` to start frontend server
+        2. Open browser at `http://127.0.0.1:5000`
+        3. Select scenario, gender, and voice → Click **Load Model**
+        4. Logs appear in `outputs/web_log.txt`
+        
 
 ## Repository Structure
 
 ```
 .
-├─ main.py                                  # Pipeline entry-point (CLI)
-├─ app.py / templates / static              # Flask frontend
-├─ prompts/
-│  ├─ scenario_1/
+├─ main.py                                   # Pipeline entry-point (CLI)
+├─ app.py / templates / static               # Flask frontend                       
+├─ prompts/                                  # Scenario prompts
+│  ├─ Scenario_1/
 │  │  ├─ female_char/prompt.json
 │  │  └─ male_char/prompt.json
-│  └─ scenario_2/...
-├─ wavs/
+│  └─ Scenario_2/...
+├─ wavs/                                     # Emotion voice references
 │  ├─ reference_woman/Standard/...
 │  └─ reference_man/Standard/...
+├─ llm_lmstudio/                             # LLM Handler
+├─ tts_handler_cosyvoice.py                  # TTS Handler
+├─ tts_config_cosyvoice.json                 # TTS Handler config file
+├─ realtimetts_clone/                       
+│  └─ engines/...                            # TTS engine files
 ├─ third_party/
-│  ├─ CosyVoice/                             # TTS engine submodule
+│  ├─ CosyVoice/                             # TTS model submodule
 │  │  └─ pretrained_models/CosyVoice2-0.5B   # TTS model weights (downloaded from ModelScope)
 │  └─ pengzhendong/wetext/                   # Python text-processing submodule
-├─ tts_config_cosyvoice.json
 ├─ requirements.txt
 └─ outputs/
 
@@ -192,13 +193,13 @@ _Note: optional if using Flask frontend_
 
 The `outputs/` directory stores all logs and transcriptions generated during runtime.
 
-- **web_log.txt** — created automatically when running the **Flask frontend**.  
+- **web_log.txt**: created automatically when running the **Flask frontend**.  
   Contains real-time logging of system events, model responses, and errors.
 
-- **Transcripts (CLI mode)** — saved according to the path set in `--output-file`.  
+- **Transcripts (CLI mode)**: saved according to the path set in `--output-file`.  
   In the Quickstart example, this is `outputs/example.txt`.
 
-- **Transcripts (Frontend mode)** — automatically saved under: `outputs/{selected_scenario}_{selected_gender}_{selected_voice}_{timestamp}.txt`
+- **Transcripts (Frontend mode)**: automatically saved under: `outputs/{selected_scenario}_{selected_gender}_{selected_voice}_{timestamp}.txt`
 
 
 ## Customization
@@ -209,7 +210,7 @@ Each prompt defines a training scenario and lives in `prompts/`:
 
 ```
 prompts/
-└─ scenario_{N}/
+└─ Scenario_{N}/
    ├─ female_char/prompt.json
    └─ male_char/prompt.json
 ```
@@ -224,11 +225,11 @@ An example of `prompt.json`
 }
 ```
 
-Prompts are dynamically loaded by the frontend dropdowns. The folder name (`scenario_{N}`) and file name (`prompt.json`) can be customized.
+Prompts are dynamically loaded by the frontend dropdowns. The folder name (`Scenario_{N}`) can be customized and will appear changed in the frontend.
 
 ### Adding Your Own Voices
 
-Add new voice reference samples **with their matching transcriptions** under wavs/:
+Add new voice reference samples **with their matching transcriptions** under `wavs/`:
 
 ```
 wavs/
@@ -247,23 +248,34 @@ Keep filenames simple and descriptive, such as `angry.wav` / `angry.txt`, since 
 **Recommended audio requirements**
 - `.wav` format  
 - **16 kHz** sample rate (CosyVoice2 automatically downsamples higher rates)  
-- **Mono** or **stereo** — both accepted  
+- **Mono** or **stereo** both accepted  
 - Typical **16-bit PCM** (default for most recorders)  
-- Each clip: 3 – 10 seconds of clear speech  
+- Each clip: 3 - 10 seconds of clear speech  
 - Avoid background noise, music, or long silences
 
 **Transcription guidelines**
-- The text should **exactly match** what is said — word for word, including punctuation (`,`, `.`, `?`, `!`).
-- Use **consistent casing** — e.g., uppercase letters for shouted words if that reflects tone.
+- The text should **exactly match** what is said word for word, including punctuation (`,`, `.`, `?`, `!`).
+- Use **consistent casing** e.g., uppercase letters for shouted words if that reflects tone.
 - Avoid extra spaces, emojis, or unspoken annotations.
-- If the audio includes hesitation sounds (`uh`, `um`), or expressions like *wow*, include them in the text too.
+- If the audio includes hesitation sounds (`uh`, `um`), or expressions like `wow`, include them in the text too.
 
 **Warning:** Mismatched or inaccurate transcripts can reduce TTS quality and voice consistency.
+
+## Supported Environments
+
+| Component | Tested Version                                  |
+| --------- | ---------------------------                     |
+| OS        | Windows 11                                      |
+| Python    | 3.10.9                                          |
+| GPU       | RTX 3080/4070 (slow), RTX 4090/5090 (optimal)   |
+| STT       | FasterWhisper - Tiny.en, Small.en     |
+| TTT/LLM   | LM Studio - Llama 3.2 1B/3B/8B        |
+| TTS       | CosyVoice2 0.5B                        |
 
 
 ## Troubleshooting
 
-If you encounter errors related to NVIDIA libraries, follow these steps to resolve them.
+If you encounter errors, follow these steps to resolve them.
 
 ---
 
@@ -284,12 +296,12 @@ This error means a required NVIDIA library is missing. To fix this, you need to 
 
 This error often indicates a **GPU memory issue**. The GPU may not have enough free memory to run the process.
 
-**Solution:** Check your GPU's memory usage and close any other applications that might be using it. You can use a tool like **NVIDIA-SMI** to monitor GPU memory.
+**Solution:** Check your GPU's memory usage and close any other applications that might be using it. You can use a tool like `nvidia-smi` to monitor GPU memory.
 
 If your GPU memory is truly empty, you may need to install the CPU version of PyTorch as a fallback. Run the following command:
 
 ```bash
-pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url [https://download.pytorch.org/whl/cpu](https://download.pytorch.org/whl/cpu)
+pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
 ```
 
 ---
@@ -310,26 +322,28 @@ This error indicates that the application is trying to connect to a server that 
 pip install "nvidia-cuda-runtime-cu12" "nvidia-cublas-cu12" "nvidia-cudnn-cu12==9.*" "nvidia-cuda-nvrtc-cu12"
 ```
 
-## Supported Environments
-
-| Component | Tested Version                        |
-| --------- | ---------------------------           |
-| OS        | Windows 11, Ubuntu 22.04              |
-| Python    | 3.10.9                                |
-| GPU       | RTX 4070 (slow), RTX 5090 (optimal)   |
-| STT       | FasterWhisper                         |
-| TTT/LLM   | LM Studio – Llama 3.2 1B/3B/8b        |
-| TTS       | CosyVoice2 0.5B                        |
-
 ## License
 
 This project is released under the **Apache License 2.0**.  
 Refer to the [`LICENSE`](LICENSE) file for details.  
-Components such as **CosyVoice2**, **FasterWhisper**, and **Llama** follow their respective licenses.
+Components such as **CosyVoice2**, **FasterWhisper**, and **Llama** have their respective licenses.
 
 ## Acknowledgements
 
 - **KLM Royal Dutch Airlines**  
-- **TU Delft — Joint Interdisciplinary Project (JIP) 2025**  
+- **TU Delft Joint Interdisciplinary Project (JIP) 2025**  
 - Open-source frameworks powering this project:  
-  **FasterWhisper**, **CosyVoice2**, **LM Studio**, **PyTorch**, and **Meta Llama**
+  **FasterWhisper**, **CosyVoice2**, **LMStudio**, **PyTorch**, and **Meta Llama**
+
+## Citation
+
+If you use our work in your research, please cite us.
+
+```
+@misc{mnm2025openvoiceagent,
+    title={OpenVoiceAgent: On-Premise Conversational AI for Realistic and Emotional Dialogue},
+    author={Smink, Moniek and Fregonara, Matteo and Djajadi, Natanael},
+    howpublished = {\url{https://github.com/mfregonara/OpenVoiceAgent}},
+    year={2025},
+}
+```
