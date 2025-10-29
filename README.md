@@ -90,7 +90,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 4. Clone this repository
 
     ```
-    git clone https://github.com/mfregonara/OpenVoiceAgent.git
+    git clone https://github.com/matteo-fregonara/OpenVoiceAgent.git
     cd OpenVoiceAgent
     ```
 
@@ -342,7 +342,7 @@ If you use our work in your research, please cite us.
 @misc{mnm2025openvoiceagent,
     title={OpenVoiceAgent: On-Premise Conversational AI for Realistic and Emotional Dialogue},
     author={Smink, Moniek and Fregonara, Matteo and Djajadi, Natanael},
-    howpublished = {\url{https://github.com/mfregonara/OpenVoiceAgent}},
+    url={https://github.com/matteo-fregonara/OpenVoiceAgent},
     year={2025},
 }
 ```
