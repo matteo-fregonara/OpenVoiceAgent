@@ -1,4 +1,4 @@
-# OpenVoiceAgent: On-Premise Conversational AI for Realistic and Emotional Dialogue (for Joint Interdisciplanary Project @ KLM)
+# OpenVoiceAgent: On-Premise Conversational AI for Realistic and Emotional Dialogue (for Joint Interdisciplinary Project @ KLM)
 ![License](https://img.shields.io/badge/License-Apache_2\.0-blue)
 ![Python](https://img.shields.io/badge/python-3\.10-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
