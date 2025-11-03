@@ -106,8 +106,6 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 
 6. Install [LMStudio](https://lmstudio.ai/) and download the `Llama-3.2-8b-instruct`, `Llama-3.2-3b-instruct` and `Llama-3.2-1b-instruct` models
 
-    <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="600">
-
    _Note: Other LLMs can be switched in as desired but large LLMs increase the latency._
 
 7. Set up the TTS model
@@ -142,8 +140,12 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
    - For best real-time performance, use `Llama-3.2-1b-instruct` for speculative decoding under the `Inference` tab
    - Start the Local Inference Server (typically runs on `localhost:1234`)
    - Verify the server is active before launching the pipeline
+  
+   _Note: Other LLMs can be switched in as desired but large LLMs increase the latency._
 
-10. Run application (two options)
+   <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="600">
+
+11. Run application (two options)
     1. CLI: From command line with terminal intermediate outputs
         ```
         python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json --wavs-directory wavs/reference_woman/Standard
