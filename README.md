@@ -72,7 +72,7 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
 [![Demo video](docs/thumbnail.png)](https://www.youtube.com/watch?v=2EcDLaaYMCg)
 
 ## Quickstart
-### Instructions
+### First-Time Installation Instructions
 
 0. Install [Visual Studio Community](https://visualstudio.microsoft.com/free-developer-offers/) with 'Desktop development with C++'
 
@@ -160,8 +160,50 @@ To ensure natural interaction, the **User Listener** thread can interrupt the ot
         1. Run `flask run` to start frontend server
         2. Open browser at `http://127.0.0.1:5000`
         3. Select scenario, gender, and voice → Click **Load Model**
-        4. Logs appear in `outputs/web_log.txt`
+        4. After scenario is loaded, click green button in phone to start call
+        5. Logs appear in `outputs/web_log.txt`
         
+
+### Nth-Time Running Instructions
+
+1. Open LMStudio and start your desired LLMs
+    - Load one of the supported models: `Llama-3.2-8b-instruct` or `Llama-3.2-3b-instruct`
+   - For best real-time performance, use `Llama-3.2-1b-instruct` for speculative decoding under the `Inference` tab
+   - Start the Local Inference Server (typically runs on `localhost:1234`)
+   - Verify the server is active before launching the pipeline
+  
+   _Note: Other LLMs can be switched in as desired but large LLMs increase the latency._
+
+   <img src="./docs/lmstudio.png" alt="LMStudio Screenshot" width="600">
+
+2. Open Miniconda (search for 'Anaconda Prompt' in applications)
+
+3. Start the virtual environment (previously installed)
+    ```
+    conda activate openvoiceagent
+    ```
+4. Move into the installed repository
+    ```
+    cd OpenVoiceAgent
+    ```
+5. Run the application
+    1. CLI: From command line with terminal intermediate outputs
+        ```
+        python main.py --prompt-file prompts/scenario_1/female_char/prompt.json --output-file outputs/example.txt --tts-config tts_config_cosyvoice.json --wavs-directory wavs/reference_woman/Standard
+        ```
+
+        - `prompt-file`: points to the JSON file containing the system prompt to the LLM (explained more in **Customization → Adding Your Own Prompts**)
+        - `output-file`: points to the txt file that will contain the final transcription after the pipeline finishes
+        - `tts-config`: points to the json file that contains the parameters for the tts engine
+        - `wavs-directory`: points to the directory that contains the emotional voice samples (explained more in **Customization → Adding Your Own Voices**)
+
+    2. Flask: With frontend without intermediate outputs
+        1. Run `flask run` to start frontend server
+        2. Open browser at `http://127.0.0.1:5000`
+        3. Select scenario, gender, and voice → Click **Load Model**
+        4. After scenario is loaded, click green button in phone to start call
+        5. Logs appear in `outputs/web_log.txt`
+
 
 ## Repository Structure
 
