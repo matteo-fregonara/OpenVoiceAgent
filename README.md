@@ -323,6 +323,21 @@ If you encounter errors, follow these steps to resolve them.
 
 ---
 
+#### `Ruamel.yaml: ERROR - AttributeError: 'Loader' object has no attribute 'max_depth'`
+
+This error often indicates an issue between `HyperPyYAML` and `ruamel.yaml` in CosyVoice.
+
+**Solution:** Re-install these two packages while pinning the `ruamel.yaml` version to <0.19
+
+Run the following commands in your virtual environment:
+
+```bash
+pip uninstall -y ruamel.yaml
+pip install "HyperPyYAML==1.2.3" "ruamel.yaml<0.19"
+```
+
+---
+
 #### `RealTimeSTT: root - ERROR - Library cublas64_12.dll is not found or cannot be loaded`
 
 This error means a required NVIDIA library is missing. To fix this, you need to download and install the cuDNN library.
